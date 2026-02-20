@@ -1,0 +1,697 @@
+// MotoJusta - Complete Prisma Schema
+// Covers HU-01 through HU-38
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum UserRole {
+  MOTOCICLISTA
+  TALLER
+  ADMIN
+}
+
+enum NotificationChannel {
+  PUSH
+  EMAIL
+  WHATSAPP
+  IN_APP
+}
+
+enum WorkshopStatus {
+  PENDIENTE
+  VERIFICADO
+  RECHAZADO
+  SUSPENDIDO
+}
+
+enum ServiceRequestStatus {
+  BORRADOR
+  PUBLICADA
+  EN_COTIZACION
+  SELECCIONADA
+  EN_SERVICIO
+  CERRADA
+  CANCELADA
+}
+
+enum UrgencyLevel {
+  BAJA
+  MEDIA
+  ALTA
+  URGENTE
+}
+
+enum QuoteStatus {
+  BORRADOR
+  ENVIADA
+  ACEPTADA
+  RECHAZADA
+  EXPIRADA
+}
+
+enum PartType {
+  ORIGINAL
+  ALTERNATIVO
+}
+
+enum WorkOrderStatus {
+  PENDIENTE
+  EN_SERVICIO
+  COMPLETADA
+  CERRADA
+}
+
+enum ChangeRequestStatus {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+}
+
+enum EvidenceStage {
+  DIAGNOSTICO
+  REPUESTO_CAMBIADO
+  FINALIZACION
+}
+
+enum IncidentType {
+  SOBRECOSTO
+  FALTA_EVIDENCIA
+  TRATO_INDEBIDO
+  OTRO
+}
+
+enum IncidentStatus {
+  RECIBIDO
+  EN_REVISION
+  RESUELTO
+}
+
+enum AdminActionType {
+  VERIFICAR_TALLER
+  RECHAZAR_TALLER
+  SUSPENDER_TALLER
+  REACTIVAR_TALLER
+  ADVERTENCIA
+  SOLICITAR_DESCARGO
+  EXPULSAR
+  RESOLVER_INCIDENTE
+  CAMBIAR_CONFIG
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
+
+enum MotorcycleUse {
+  TRABAJO
+  DIARIO
+  MIXTO
+}
+
+// ============================================
+// USER & AUTH (HU-01, HU-02, HU-03)
+// ============================================
+
+model UserProfile {
+  id              String    @id @default(cuid())
+  clerkUserId     String    @unique
+  role            UserRole  @default(MOTOCICLISTA)
+  email           String?   @unique
+  phone           String?   @unique
+  name            String?
+  district        String?
+  avatarUrl       String?
+  notifChannel    NotificationChannel @default(IN_APP)
+  phoneVisible    Boolean   @default(false)
+  termsAccepted   Boolean   @default(false)
+  termsVersion    String?
+  termsAcceptedAt DateTime?
+  privacyAccepted Boolean   @default(false)
+  privacyVersion  String?
+  privacyAcceptedAt DateTime?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  motorcycles       Motorcycle[]
+  serviceRequests   ServiceRequest[]
+  reviews           Review[]
+  incidentReports   IncidentReport[]   @relation("Reporter")
+  notifications     Notification[]
+  chatMessages      ChatMessage[]
+  workshop          Workshop?
+
+  @@map("user_profiles")
+}
+
+// ============================================
+// MOTORCYCLE (HU-04)
+// ============================================
+
+model Motorcycle {
+  id          String    @id @default(cuid())
+  userId      String
+  brand       String
+  model       String
+  year        Int
+  displacement Int?
+  use         MotorcycleUse?
+  kmApprox    Int?
+  alias       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  user            UserProfile       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceRequests ServiceRequest[]
+
+  @@unique([userId, brand, model, year, alias])
+  @@map("motorcycles")
+}
+
+// ============================================
+// CATEGORIES (HU-06)
+// ============================================
+
+model Category {
+  id            String    @id @default(cuid())
+  name          String
+  slug          String    @unique
+  description   String?
+  parentId      String?
+  version       Int       @default(1)
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  parent        Category?         @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children      Category[]        @relation("CategoryHierarchy")
+  guideQuestions GuideQuestion[]
+  serviceRequests ServiceRequest[]
+  workshopCategories WorkshopCategory[]
+
+  @@map("categories")
+}
+
+// ============================================
+// GUIDE QUESTIONS (HU-07)
+// ============================================
+
+model GuideQuestion {
+  id          String    @id @default(cuid())
+  categoryId  String
+  question    String
+  inputType   String    @default("text") // text, select, boolean
+  options     String?   // JSON array for select type
+  order       Int       @default(0)
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  category    Category  @relation(fields: [categoryId], references: [id])
+  answers     GuideAnswer[]
+
+  @@map("guide_questions")
+}
+
+model GuideAnswer {
+  id          String    @id @default(cuid())
+  questionId  String
+  requestId   String
+  answer      String
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  question    GuideQuestion  @relation(fields: [questionId], references: [id])
+  request     ServiceRequest @relation(fields: [requestId], references: [id])
+
+  @@map("guide_answers")
+}
+
+// ============================================
+// SERVICE REQUEST (HU-05, HU-08, HU-09)
+// ============================================
+
+model ServiceRequest {
+  id              String    @id @default(cuid())
+  userId          String
+  motorcycleId    String
+  categoryId      String
+  description     String
+  district        String
+  urgency         UrgencyLevel @default(MEDIA)
+  status          ServiceRequestStatus @default(BORRADOR)
+  completionScore Int        @default(0)
+  expiresAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  user            UserProfile     @relation(fields: [userId], references: [id])
+  motorcycle      Motorcycle      @relation(fields: [motorcycleId], references: [id])
+  category        Category        @relation(fields: [categoryId], references: [id])
+  media           RequestMedia[]
+  guideAnswers    GuideAnswer[]
+  quotes          Quote[]
+  statusHistory   RequestStatusHistory[]
+  notifications   Notification[]  @relation("RequestNotifications")
+  workOrder       WorkOrder?
+  chatMessages    ChatMessage[]
+  aiSuggestions   AiSuggestion[]
+
+  @@map("service_requests")
+}
+
+model RequestMedia {
+  id          String    @id @default(cuid())
+  requestId   String
+  url         String
+  mediaType   MediaType
+  fileName    String?
+  fileSize    Int?
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  request     ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@map("request_media")
+}
+
+model RequestStatusHistory {
+  id          String    @id @default(cuid())
+  requestId   String
+  fromStatus  ServiceRequestStatus?
+  toStatus    ServiceRequestStatus
+  actorId     String?
+  reason      String?
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  request     ServiceRequest @relation(fields: [requestId], references: [id])
+
+  @@map("request_status_history")
+}
+
+// ============================================
+// WORKSHOP (HU-10, HU-11, HU-25)
+// ============================================
+
+model Workshop {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  name            String
+  address         String
+  district        String
+  phone           String
+  ruc             String?
+  description     String?
+  photoUrl        String?
+  status          WorkshopStatus @default(PENDIENTE)
+  transparencyAccepted Boolean @default(false)
+  guaranteePolicy String?
+  latitude        Float?
+  longitude       Float?
+  rating          Float     @default(0)
+  totalServices   Int       @default(0)
+  evidenceRate    Float     @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  user            UserProfile      @relation(fields: [userId], references: [id])
+  categories      WorkshopCategory[]
+  quotes          Quote[]
+  workOrders      WorkOrder[]
+  reviews         Review[]
+  incidentReports IncidentReport[] @relation("WorkshopIncidents")
+  verifications   WorkshopVerification[]
+
+  @@map("workshops")
+}
+
+model WorkshopCategory {
+  id          String    @id @default(cuid())
+  workshopId  String
+  categoryId  String
+
+  // Relations
+  workshop    Workshop  @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  category    Category  @relation(fields: [categoryId], references: [id])
+
+  @@unique([workshopId, categoryId])
+  @@map("workshop_categories")
+}
+
+model WorkshopVerification {
+  id          String    @id @default(cuid())
+  workshopId  String
+  adminId     String
+  decision    WorkshopStatus
+  reason      String
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  workshop    Workshop  @relation(fields: [workshopId], references: [id])
+
+  @@map("workshop_verifications")
+}
+
+// ============================================
+// QUOTE (HU-13, HU-14, HU-15, HU-17, HU-18)
+// ============================================
+
+model Quote {
+  id              String    @id @default(cuid())
+  requestId       String
+  workshopId      String
+  version         Int       @default(1)
+  diagnosis       String
+  laborCost       Float
+  totalParts      Float     @default(0)
+  totalCost       Float
+  estimatedTime   String
+  validUntil      DateTime
+  notes           String?
+  status          QuoteStatus @default(BORRADOR)
+  rejectionReason String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  request         ServiceRequest @relation(fields: [requestId], references: [id])
+  workshop        Workshop       @relation(fields: [workshopId], references: [id])
+  parts           QuotePartItem[]
+  workOrder       WorkOrder?
+  aiAnalysis      AiQuoteAnalysis[]
+
+  @@map("quotes")
+}
+
+model QuotePartItem {
+  id              String    @id @default(cuid())
+  quoteId         String
+  name            String
+  quantity        Int       @default(1)
+  unitPrice       Float
+  partType        PartType  @default(ORIGINAL)
+  notes           String?
+  alternativeName String?
+  alternativePrice Float?
+  alternativeType PartType?
+  alternativeNotes String?
+  selectedAlternative Boolean @default(false)
+  createdAt       DateTime  @default(now())
+
+  // Relations
+  quote           Quote     @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@map("quote_part_items")
+}
+
+// ============================================
+// WORK ORDER (HU-19, HU-20, HU-23)
+// ============================================
+
+model WorkOrder {
+  id              String    @id @default(cuid())
+  orderNumber     String    @unique
+  requestId       String    @unique
+  quoteId         String    @unique
+  workshopId      String
+  diagnosis       String
+  totalAgreed     Float
+  totalFinal      Float?
+  status          WorkOrderStatus @default(PENDIENTE)
+  userAcceptedAt  DateTime?
+  workshopAcceptedAt DateTime?
+  startedAt       DateTime?
+  startNote       String?
+  completedAt     DateTime?
+  closedAt        DateTime?
+  closureChecklist String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  request         ServiceRequest @relation(fields: [requestId], references: [id])
+  quote           Quote          @relation(fields: [quoteId], references: [id])
+  workshop        Workshop       @relation(fields: [workshopId], references: [id])
+  changeRequests  ChangeRequest[]
+  evidences       Evidence[]
+  review          Review?
+  receipt         Receipt?
+
+  @@map("work_orders")
+}
+
+// ============================================
+// CHANGE REQUEST (HU-22) - BLOQUEANTE
+// ============================================
+
+model ChangeRequest {
+  id              String    @id @default(cuid())
+  workOrderId     String
+  description     String
+  justification   String
+  additionalCost  Float
+  additionalTime  String?
+  status          ChangeRequestStatus @default(PENDIENTE)
+  decidedAt       DateTime?
+  decidedBy       String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  workOrder       WorkOrder @relation(fields: [workOrderId], references: [id])
+
+  @@map("change_requests")
+}
+
+// ============================================
+// EVIDENCE (HU-21)
+// ============================================
+
+model Evidence {
+  id          String    @id @default(cuid())
+  workOrderId String
+  stage       EvidenceStage
+  url         String
+  mediaType   MediaType
+  fileName    String?
+  description String?
+  flagged     Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+
+  @@map("evidences")
+}
+
+// ============================================
+// REVIEW (HU-24)
+// ============================================
+
+model Review {
+  id          String    @id @default(cuid())
+  workOrderId String    @unique
+  workshopId  String
+  userId      String
+  rating      Int
+  comment     String?
+  editableUntil DateTime
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  workOrder   WorkOrder   @relation(fields: [workOrderId], references: [id])
+  workshop    Workshop    @relation(fields: [workshopId], references: [id])
+  user        UserProfile @relation(fields: [userId], references: [id])
+
+  @@map("reviews")
+}
+
+// ============================================
+// RECEIPT (HU-23)
+// ============================================
+
+model Receipt {
+  id          String    @id @default(cuid())
+  workOrderId String    @unique
+  totalOriginal Float
+  totalChanges Float
+  totalFinal  Float
+  pdfUrl      String?
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id])
+
+  @@map("receipts")
+}
+
+// ============================================
+// INCIDENT REPORT (HU-27, HU-28)
+// ============================================
+
+model IncidentReport {
+  id          String    @id @default(cuid())
+  reporterId  String
+  workshopId  String
+  type        IncidentType
+  description String
+  evidenceUrl String?
+  status      IncidentStatus @default(RECIBIDO)
+  resolution  String?
+  resolvedAt  DateTime?
+  resolvedBy  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  reporter    UserProfile @relation("Reporter", fields: [reporterId], references: [id])
+  workshop    Workshop    @relation("WorkshopIncidents", fields: [workshopId], references: [id])
+
+  @@map("incident_reports")
+}
+
+// ============================================
+// CHAT (HU-16)
+// ============================================
+
+model ChatMessage {
+  id          String    @id @default(cuid())
+  requestId   String
+  senderId    String
+  content     String
+  imageUrl    String?
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  request     ServiceRequest @relation(fields: [requestId], references: [id])
+  sender      UserProfile    @relation(fields: [senderId], references: [id])
+
+  @@map("chat_messages")
+}
+
+// ============================================
+// NOTIFICATION (HU-31)
+// ============================================
+
+model Notification {
+  id          String    @id @default(cuid())
+  userId      String
+  requestId   String?
+  title       String
+  body        String
+  channel     NotificationChannel @default(IN_APP)
+  isRead      Boolean   @default(false)
+  link        String?
+  createdAt   DateTime  @default(now())
+
+  // Relations
+  user        UserProfile     @relation(fields: [userId], references: [id])
+  request     ServiceRequest? @relation("RequestNotifications", fields: [requestId], references: [id])
+
+  @@map("notifications")
+}
+
+// ============================================
+// ADMIN / AUDIT (HU-28, HU-32)
+// ============================================
+
+model AuditLog {
+  id          String    @id @default(cuid())
+  actorId     String
+  action      AdminActionType
+  targetType  String
+  targetId    String
+  reason      String?
+  metadata    String?
+  createdAt   DateTime  @default(now())
+
+  @@map("audit_logs")
+}
+
+// ============================================
+// FEATURE FLAGS (MVP vs Labs)
+// ============================================
+
+model FeatureFlag {
+  id          String    @id @default(cuid())
+  key         String    @unique
+  name        String
+  description String?
+  enabled     Boolean   @default(false)
+  isMvp       Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("feature_flags")
+}
+
+// ============================================
+// AI FEATURES (HU-33..HU-38)
+// ============================================
+
+model AiSuggestion {
+  id              String    @id @default(cuid())
+  requestId       String
+  type            String
+  input           String?
+  output          String?
+  confidence      Float?
+  modelVersion    String?
+  isConclusive    Boolean   @default(false)
+  disclaimer      String?
+  createdAt       DateTime  @default(now())
+
+  // Relations
+  request         ServiceRequest @relation(fields: [requestId], references: [id])
+
+  @@map("ai_suggestions")
+}
+
+model AiQuoteAnalysis {
+  id              String    @id @default(cuid())
+  quoteId         String
+  type            String
+  input           String?
+  output          String?
+  traceability    String?
+  modelVersion    String?
+  createdAt       DateTime  @default(now())
+
+  // Relations
+  quote           Quote     @relation(fields: [quoteId], references: [id])
+
+  @@map("ai_quote_analyses")
+}
+
+// ============================================
+// APP CONFIG
+// ============================================
+
+model AppConfig {
+  id          String    @id @default(cuid())
+  key         String    @unique
+  value       String
+  description String?
+  updatedAt   DateTime  @updatedAt
+
+  @@map("app_configs")
+}
