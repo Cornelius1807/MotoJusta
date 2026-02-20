@@ -1,13 +1,12 @@
 import { PrismaClient } from "@/generated/prisma/client";
-import { PrismaNeon } from "@prisma/adapter-neon";
-import { Pool } from "@neondatabase/serverless";
+import { PrismaPg } from "@prisma/adapter-pg";
+import pg from "pg";
 
 function createPrismaClient() {
   const databaseUrl = process.env.DATABASE_URL;
 
   if (!databaseUrl) {
     console.warn("⚠️  DATABASE_URL not set — Prisma client will not connect");
-    // Return a proxy that logs warnings for any DB access
     return new Proxy({} as PrismaClient, {
       get(_target, prop) {
         if (prop === "$connect" || prop === "$disconnect") {
@@ -21,8 +20,8 @@ function createPrismaClient() {
     });
   }
 
-  const pool = new Pool({ connectionString: databaseUrl });
-  const adapter = new PrismaNeon(pool as any);
+  const pool = new pg.Pool({ connectionString: databaseUrl, ssl: { rejectUnauthorized: false } });
+  const adapter = new PrismaPg(pool);
   return new PrismaClient({ adapter } as any);
 }
 
