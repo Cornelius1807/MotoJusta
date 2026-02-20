@@ -47,7 +47,7 @@ const topWorkshops = [
   { name: "MotoExpert Lima", district: "Lima", rating: 4.2, orders: 22 },
 ];
 
-const categoryDistribution = [
+const defaultCategoryDistribution = [
   { name: "Mantenimiento general", pct: 35 },
   { name: "Frenos", pct: 20 },
   { name: "Motor", pct: 18 },
@@ -61,6 +61,7 @@ export default function AdminMetricasPage() {
   const [stats, setStats] = useState(platformStats);
   const [metrics, setMetrics] = useState(serviceMetrics);
   const [workshops, setWorkshops] = useState(topWorkshops);
+  const [categories, setCategories] = useState(defaultCategoryDistribution);
 
   useEffect(() => {
     loadMetrics();
@@ -86,6 +87,9 @@ export default function AdminMetricasPage() {
       ]);
       if (data.topWorkshops.length > 0) {
         setWorkshops(data.topWorkshops);
+      }
+      if (data.categoryDistribution && data.categoryDistribution.length > 0) {
+        setCategories(data.categoryDistribution);
       }
     } catch (error) {
       toast.error("Error al cargar métricas");
@@ -168,7 +172,7 @@ export default function AdminMetricasPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {categoryDistribution.map((cat) => (
+              {categories.map((cat) => (
                 <div key={cat.name}>
                   <div className="flex justify-between text-sm mb-1">
                     <span>{cat.name}</span>

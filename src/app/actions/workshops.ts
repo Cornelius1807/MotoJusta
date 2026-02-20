@@ -83,6 +83,23 @@ export async function getWorkshops() {
   });
 }
 
+export async function getWorkshopProfile() {
+  const { userId } = await auth();
+  if (!userId) throw new Error("No autorizado");
+
+  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
+  if (!profile) throw new Error("Perfil no encontrado");
+
+  const workshop = await prisma.workshop.findFirst({
+    where: { userId: profile.id },
+    include: {
+      categories: { include: { category: true } },
+    },
+  });
+
+  return workshop;
+}
+
 export async function suspendWorkshop(workshopId: string, reason: string) {
   const { userId } = await auth();
   if (!userId) throw new Error("No autorizado");

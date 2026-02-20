@@ -34,6 +34,22 @@ export async function getMetrics() {
     },
   });
 
+  // Category distribution
+  const categoryStats = await prisma.category.findMany({
+    select: {
+      name: true,
+      _count: { select: { serviceRequests: true } },
+    },
+  });
+  const totalCatRequests = categoryStats.reduce((sum, c) => sum + c._count.serviceRequests, 0);
+  const categoryDistribution = categoryStats
+    .map((c) => ({
+      name: c.name,
+      pct: totalCatRequests > 0 ? Math.round((c._count.serviceRequests / totalCatRequests) * 100) : 0,
+    }))
+    .sort((a, b) => b.pct - a.pct)
+    .slice(0, 6);
+
   return {
     totalRequests,
     totalQuotes,
@@ -50,5 +66,6 @@ export async function getMetrics() {
       rating: w.rating,
       orders: w._count.workOrders,
     })),
+    categoryDistribution,
   };
 }
