@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -47,6 +48,7 @@ export function TermsDialog({ termsAccepted }: TermsDialogProps) {
       >
         <DialogHeader>
           <DialogTitle>Términos y Condiciones de MotoJusta</DialogTitle>
+          <DialogDescription>Lee y acepta los términos para continuar usando la plataforma.</DialogDescription>
         </DialogHeader>
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="text-sm text-muted-foreground space-y-4">

@@ -35,7 +35,7 @@ const DEMO_MOTOS: Motorcycle[] = [
 ];
 
 export default function MotosPage() {
-  const [motos, setMotos] = useState<Motorcycle[]>(DEMO_MOTOS);
+  const [motos, setMotos] = useState<Motorcycle[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [form, setForm] = useState({ brand: "", model: "", year: "", displacement: "", use: "", kmApprox: "", placa: "", alias: "" });
@@ -56,8 +56,10 @@ export default function MotosPage() {
           alias: m.alias ?? undefined,
         })));
       })
-      .catch(() => {
-        setMotos(DEMO_MOTOS);
+      .catch((err) => {
+        console.error("[Motos] Error loading:", err);
+        toast.error(`Error al cargar motos: ${err.message || "Error desconocido"}`);
+        setMotos([]);
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -97,22 +99,9 @@ export default function MotosPage() {
       setForm({ brand: "", model: "", year: "", displacement: "", use: "", kmApprox: "", placa: "", alias: "" });
       setIsOpen(false);
       toast.success("Moto registrada correctamente");
-    } catch {
-      const newMoto: Motorcycle = {
-        id: Date.now().toString(),
-        brand: form.brand,
-        model: form.model,
-        year,
-        displacement: form.displacement ? parseInt(form.displacement) : undefined,
-        use: form.use || undefined,
-        kmApprox: form.kmApprox ? parseInt(form.kmApprox) : undefined,
-        placa: form.placa || undefined,
-        alias: form.alias || undefined,
-      };
-      setMotos([...motos, newMoto]);
-      setForm({ brand: "", model: "", year: "", displacement: "", use: "", kmApprox: "", placa: "", alias: "" });
-      setIsOpen(false);
-      toast.error("No se pudo guardar en el servidor. Moto agregada localmente.");
+    } catch (err: any) {
+      console.error("[Motos] Error creating:", err);
+      toast.error(`Error al registrar moto: ${err.message || "Error desconocido"}`);
     }
   };
 

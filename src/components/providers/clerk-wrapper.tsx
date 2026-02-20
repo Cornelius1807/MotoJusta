@@ -14,7 +14,12 @@ export function ClerkWrapper({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <ClerkProvider localization={esES} publishableKey={key}>
+    <ClerkProvider
+      localization={esES}
+      publishableKey={key}
+      signInFallbackRedirectUrl="/app"
+      signUpFallbackRedirectUrl="/app"
+    >
       {children}
     </ClerkProvider>
   );
