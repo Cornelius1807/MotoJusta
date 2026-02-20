@@ -2,6 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateProfile } from "@/lib/get-profile";
 import { revalidatePath } from "next/cache";
 
 // --- Send chat message (HU-16) ---
@@ -10,11 +11,8 @@ export async function sendChatMessage(data: {
   content: string;
   imageUrl?: string;
 }) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   if (!data.content.trim() && !data.imageUrl) {
     throw new Error("El mensaje no puede estar vacío");
@@ -55,11 +53,8 @@ export async function getChatMessages(requestId: string) {
 
 // --- Mark messages as read ---
 export async function markMessagesRead(requestId: string) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   await prisma.chatMessage.updateMany({
     where: {

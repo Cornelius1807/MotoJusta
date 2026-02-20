@@ -1,7 +1,7 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateProfile } from "@/lib/get-profile";
 import { reviewSchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
@@ -11,11 +11,8 @@ export async function createReview(data: {
   rating: number;
   comment?: string;
 }) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   const parsed = reviewSchema.parse({ rating: data.rating, comment: data.comment });
   const { workOrderId } = data;

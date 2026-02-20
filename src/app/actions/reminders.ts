@@ -2,6 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateProfile } from "@/lib/get-profile";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 
@@ -17,10 +18,7 @@ export interface Reminder {
 
 // --- HU-27: Get maintenance reminders ---
 export async function getReminders(): Promise<Reminder[]> {
-  const { userId } = await auth();
-  if (!userId) return [];
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
+  const profile = await getOrCreateProfile();
   if (!profile) return [];
 
   const motorcycles = await prisma.motorcycle.findMany({

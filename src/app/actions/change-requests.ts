@@ -2,6 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateProfile } from "@/lib/get-profile";
 import { changeRequestSchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
@@ -14,18 +15,15 @@ export async function createChangeRequest(data: {
   additionalCost: number;
   additionalTime?: string;
 }) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
-  const profile = await prisma.userProfile.findUnique({
-    where: { clerkUserId: userId },
-    include: { workshop: true },
-  });
-  if (!profile?.workshop) throw new Error("Taller no encontrado");
+  const workshop = await prisma.workshop.findFirst({ where: { userId: profile.id } });
+  if (!workshop) throw new Error("Taller no encontrado");
 
   const workOrder = await prisma.workOrder.findUnique({ where: { id: data.workOrderId } });
   if (!workOrder) throw new Error("Orden no encontrada");
-  if (workOrder.workshopId !== profile.workshop.id) throw new Error("No autorizado");
+  if (workOrder.workshopId !== workshop.id) throw new Error("No autorizado");
   if (workOrder.status !== "EN_SERVICIO") throw new Error("La orden debe estar EN_SERVICIO");
 
   const parsed = changeRequestSchema.parse(data);
@@ -63,11 +61,8 @@ export async function createChangeRequest(data: {
 
 // --- Approve change request (HU-22) ---
 export async function approveChangeRequest(changeRequestId: string) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   const changeRequest = await prisma.changeRequest.findUnique({
     where: { id: changeRequestId },
@@ -94,11 +89,8 @@ export async function approveChangeRequest(changeRequestId: string) {
 
 // --- Reject change request (HU-22) ---
 export async function rejectChangeRequest(changeRequestId: string) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   const changeRequest = await prisma.changeRequest.findUnique({
     where: { id: changeRequestId },

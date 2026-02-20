@@ -2,6 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateProfile } from "@/lib/get-profile";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { createNotification } from "./notifications";
@@ -33,18 +34,15 @@ export async function getWorkOrder(id: string) {
 
 // --- Get work orders for workshop ---
 export async function getWorkshopOrders(filters?: { status?: string }) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
-  const profile = await prisma.userProfile.findUnique({
-    where: { clerkUserId: userId },
-    include: { workshop: true },
-  });
-  if (!profile?.workshop) throw new Error("Taller no encontrado");
+  const workshop = await prisma.workshop.findFirst({ where: { userId: profile.id } });
+  if (!workshop) throw new Error("Taller no encontrado");
 
   return prisma.workOrder.findMany({
     where: {
-      workshopId: profile.workshop.id,
+      workshopId: workshop.id,
       ...(filters?.status ? { status: filters.status as any } : {}),
     },
     include: {
@@ -65,11 +63,8 @@ export async function getWorkshopOrders(filters?: { status?: string }) {
 
 // --- Get work orders for motorcyclist ---
 export async function getUserOrders() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   return prisma.workOrder.findMany({
     where: { request: { userId: profile.id } },
@@ -89,18 +84,15 @@ export async function getUserOrders() {
 
 // --- Start service (HU-20) ---
 export async function startService(workOrderId: string, startNote?: string) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
-  const profile = await prisma.userProfile.findUnique({
-    where: { clerkUserId: userId },
-    include: { workshop: true },
-  });
-  if (!profile?.workshop) throw new Error("Taller no encontrado");
+  const workshop = await prisma.workshop.findFirst({ where: { userId: profile.id } });
+  if (!workshop) throw new Error("Taller no encontrado");
 
   const workOrder = await prisma.workOrder.findUnique({ where: { id: workOrderId } });
   if (!workOrder) throw new Error("Orden no encontrada");
-  if (workOrder.workshopId !== profile.workshop.id) throw new Error("No autorizado");
+  if (workOrder.workshopId !== workshop.id) throw new Error("No autorizado");
   if (workOrder.status !== "PENDIENTE") throw new Error("La orden debe estar PENDIENTE para iniciar servicio");
 
   const updated = await prisma.workOrder.update({
@@ -133,12 +125,12 @@ export async function startService(workOrderId: string, startNote?: string) {
       userId: (await prisma.serviceRequest.findUnique({ where: { id: workOrder.requestId } }))!.userId,
       requestId: workOrder.requestId,
       title: "Servicio iniciado",
-      body: `El taller ${profile.workshop.name} ha iniciado el servicio de tu moto`,
+      body: `El taller ${workshop.name} ha iniciado el servicio de tu moto`,
       link: `/app/ordenes/${workOrderId}`,
     },
   });
 
-  logger.info("Service started", { workOrderId, workshopId: profile.workshop.id });
+  logger.info("Service started", { workOrderId, workshopId: workshop.id });
   revalidatePath(`/app/ordenes/${workOrderId}`);
   revalidatePath(`/app/taller/ordenes/${workOrderId}`);
   return updated;
@@ -146,21 +138,18 @@ export async function startService(workOrderId: string, startNote?: string) {
 
 // --- Complete service (HU-23) ---
 export async function completeService(workOrderId: string) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
-  const profile = await prisma.userProfile.findUnique({
-    where: { clerkUserId: userId },
-    include: { workshop: true },
-  });
-  if (!profile?.workshop) throw new Error("Taller no encontrado");
+  const workshop = await prisma.workshop.findFirst({ where: { userId: profile.id } });
+  if (!workshop) throw new Error("Taller no encontrado");
 
   const workOrder = await prisma.workOrder.findUnique({
     where: { id: workOrderId },
     include: { changeRequests: true },
   });
   if (!workOrder) throw new Error("Orden no encontrada");
-  if (workOrder.workshopId !== profile.workshop.id) throw new Error("No autorizado");
+  if (workOrder.workshopId !== workshop.id) throw new Error("No autorizado");
   if (workOrder.status !== "EN_SERVICIO") throw new Error("La orden debe estar EN_SERVICIO para completar");
 
   // HU-22: Block if pending change requests
@@ -217,11 +206,8 @@ export async function completeService(workOrderId: string) {
 
 // --- Close order (HU-23) ---
 export async function closeOrder(workOrderId: string) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   const workOrder = await prisma.workOrder.findUnique({
     where: { id: workOrderId },

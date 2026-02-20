@@ -1,7 +1,7 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateProfile } from "@/lib/get-profile";
 import { incidentReportSchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
@@ -11,11 +11,8 @@ export async function createIncident(data: {
   type: string;
   description: string;
 }) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   const parsed = incidentReportSchema.parse(data);
 
@@ -34,9 +31,7 @@ export async function createIncident(data: {
 }
 
 export async function getIncidents() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
+  const profile = await getOrCreateProfile();
   if (!profile || profile.role !== "ADMIN") throw new Error("No autorizado - solo admin");
   return prisma.incidentReport.findMany({
     include: {
@@ -48,10 +43,7 @@ export async function getIncidents() {
 }
 
 export async function resolveIncident(incidentId: string, resolution: string, action?: string) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
+  const profile = await getOrCreateProfile();
   if (!profile || profile.role !== "ADMIN") throw new Error("No autorizado - solo admin");
 
   const incident = await prisma.incidentReport.update({

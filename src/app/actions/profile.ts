@@ -1,17 +1,17 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateProfile } from "@/lib/get-profile";
 import { userProfileSchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 
 export async function getProfile() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   return prisma.userProfile.findUnique({
-    where: { clerkUserId: userId },
+    where: { id: profile.id },
     include: { workshop: true },
   });
 }
@@ -21,13 +21,13 @@ export async function updateProfile(data: {
   district: string;
   notifChannel?: string;
 }) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   const parsed = userProfileSchema.parse(data);
 
-  const profile = await prisma.userProfile.update({
-    where: { clerkUserId: userId },
+  const updated = await prisma.userProfile.update({
+    where: { clerkUserId: profile.clerkUserId },
     data: {
       name: parsed.name,
       district: parsed.district,
@@ -35,24 +35,24 @@ export async function updateProfile(data: {
     },
   });
 
-  logger.info("Profile updated", { userId: profile.id });
+  logger.info("Profile updated", { userId: updated.id });
   revalidatePath("/app/perfil");
-  return profile;
+  return updated;
 }
 
 export async function acceptTerms() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
-  const profile = await prisma.userProfile.update({
-    where: { clerkUserId: userId },
+  const updated = await prisma.userProfile.update({
+    where: { clerkUserId: profile.clerkUserId },
     data: {
       termsAccepted: true,
       termsAcceptedAt: new Date(),
     },
   });
 
-  logger.info("Terms accepted", { userId: profile.id });
+  logger.info("Terms accepted", { userId: updated.id });
   revalidatePath("/app");
-  return profile;
+  return updated;
 }

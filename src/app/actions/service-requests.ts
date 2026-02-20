@@ -2,17 +2,15 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateProfile } from "@/lib/get-profile";
 import { serviceRequestSchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { createNotification } from "./notifications";
 
 export async function getServiceRequests(filters?: { status?: string }) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   return prisma.serviceRequest.findMany({
     where: {
@@ -52,23 +50,50 @@ export async function createServiceRequest(data: {
   categoryId: string;
   description: string;
   urgency?: string;
+  photoUrls?: string[];
 }) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   const parsed = serviceRequestSchema.parse(data);
 
+  // Resolve categoryId — could be a slug ("motor") or a real DB id
+  let resolvedCategoryId = parsed.categoryId;
+  const isCuid = /^c[a-z0-9]{24,}$/i.test(resolvedCategoryId);
+  if (!isCuid) {
+    const cat = await prisma.category.findUnique({ where: { slug: resolvedCategoryId } });
+    if (!cat) throw new Error("Categoría no encontrada");
+    resolvedCategoryId = cat.id;
+  }
+
   const request = await prisma.serviceRequest.create({
     data: {
-      ...parsed,
-      urgency: parsed.urgency as any,
+      motorcycleId: parsed.motorcycleId,
+      categoryId: resolvedCategoryId,
+      description: parsed.description,
+      district: parsed.district || profile.district || "Lima",
+      urgency: (parsed.urgency || "MEDIA") as any,
       userId: profile.id,
       status: "PUBLICADA",
     },
   });
+
+  // Save attached photos as RequestMedia
+  if (data.photoUrls && data.photoUrls.length > 0) {
+    const validUrls = data.photoUrls.filter(
+      (url) => url && !url.startsWith("blob:")
+    );
+    if (validUrls.length > 0) {
+      await prisma.requestMedia.createMany({
+        data: validUrls.map((url) => ({
+          requestId: request.id,
+          url,
+          mediaType: "IMAGE" as any,
+          fileName: url.split("/").pop() || "photo.jpg",
+        })),
+      });
+    }
+  }
 
   // Create status history
   await prisma.requestStatusHistory.create({

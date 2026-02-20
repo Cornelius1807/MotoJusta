@@ -1,21 +1,18 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateProfile } from "@/lib/get-profile";
 import { quoteSchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 import { createNotification } from "./notifications";
 
 export async function createQuote(data: Record<string, unknown>) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
-  const profile = await prisma.userProfile.findUnique({
-    where: { clerkUserId: userId },
-    include: { workshop: true },
-  });
-  if (!profile?.workshop) throw new Error("Perfil de taller no encontrado");
+  const workshop = await prisma.workshop.findFirst({ where: { userId: profile.id } });
+  if (!workshop) throw new Error("Perfil de taller no encontrado");
 
   const parsed = quoteSchema.parse(data);
 
@@ -24,7 +21,7 @@ export async function createQuote(data: Record<string, unknown>) {
   const quote = await prisma.quote.create({
     data: {
       requestId: parsed.requestId,
-      workshopId: profile.workshop.id,
+      workshopId: workshop.id,
       diagnosis: parsed.diagnosis,
       laborCost: parsed.laborCost,
       totalParts,
@@ -54,18 +51,15 @@ export async function createQuote(data: Record<string, unknown>) {
     });
   }
 
-  logger.info("Quote created", { workshopId: profile.workshop.id, quoteId: quote.id });
+  logger.info("Quote created", { workshopId: workshop.id, quoteId: quote.id });
   revalidatePath(`/app/solicitudes/${parsed.requestId}`);
   revalidatePath("/app/taller/solicitudes");
   return quote;
 }
 
 export async function acceptQuote(quoteId: string) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   const quote = await prisma.quote.findUnique({
     where: { id: quoteId },
@@ -150,11 +144,8 @@ export async function acceptQuote(quoteId: string) {
 
 // --- HU-15: Reject quote ---
 export async function rejectQuote(quoteId: string, reason: string) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   const quote = await prisma.quote.findUnique({
     where: { id: quoteId },
@@ -178,11 +169,8 @@ export async function rejectQuote(quoteId: string, reason: string) {
 
 // --- HU-15: Counter offer ---
 export async function counterOffer(quoteId: string, message: string, suggestedAmount: number) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   const quote = await prisma.quote.findUnique({
     where: { id: quoteId },

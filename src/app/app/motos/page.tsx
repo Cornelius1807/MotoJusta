@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Plus, Bike, Pencil, Trash2 } from "lucide-react";
 import { MOTORCYCLE_BRANDS } from "@/lib/validations";
 import { toast } from "sonner";
@@ -140,6 +140,7 @@ export default function MotosPage() {
           <DialogContent className="max-w-md">
             <DialogHeader>
               <DialogTitle>Registrar nueva moto</DialogTitle>
+              <DialogDescription>Completa los datos de tu motocicleta</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div>

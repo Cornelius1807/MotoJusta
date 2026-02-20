@@ -2,6 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateProfile } from "@/lib/get-profile";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 
@@ -14,18 +15,15 @@ export async function addEvidence(data: {
   fileName?: string;
   description?: string;
 }) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
-  const profile = await prisma.userProfile.findUnique({
-    where: { clerkUserId: userId },
-    include: { workshop: true },
-  });
-  if (!profile?.workshop) throw new Error("Taller no encontrado");
+  const workshop = await prisma.workshop.findFirst({ where: { userId: profile.id } });
+  if (!workshop) throw new Error("Taller no encontrado");
 
   const workOrder = await prisma.workOrder.findUnique({ where: { id: data.workOrderId } });
   if (!workOrder) throw new Error("Orden no encontrada");
-  if (workOrder.workshopId !== profile.workshop.id) throw new Error("No autorizado");
+  if (workOrder.workshopId !== workshop.id) throw new Error("No autorizado");
   if (workOrder.status !== "EN_SERVICIO" && workOrder.status !== "COMPLETADA") {
     throw new Error("La orden debe estar EN_SERVICIO o COMPLETADA");
   }
@@ -56,15 +54,15 @@ export async function addEvidence(data: {
   });
 
   // Update workshop evidence rate
-  const totalOrders = await prisma.workOrder.count({ where: { workshopId: profile.workshop.id } });
+  const totalOrders = await prisma.workOrder.count({ where: { workshopId: workshop.id } });
   const ordersWithEvidence = await prisma.workOrder.count({
     where: {
-      workshopId: profile.workshop.id,
+      workshopId: workshop.id,
       evidences: { some: {} },
     },
   });
   await prisma.workshop.update({
-    where: { id: profile.workshop.id },
+    where: { id: workshop.id },
     data: { evidenceRate: totalOrders > 0 ? ordersWithEvidence / totalOrders : 0 },
   });
 

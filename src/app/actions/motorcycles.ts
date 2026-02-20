@@ -1,17 +1,14 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateProfile } from "@/lib/get-profile";
 import { motorcycleSchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 
 export async function getMotorcycles() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   return prisma.motorcycle.findMany({
     where: { userId: profile.id },
@@ -29,11 +26,8 @@ export async function createMotorcycle(data: {
   placa?: string;
   alias?: string;
 }) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   const parsed = motorcycleSchema.parse(data);
 
@@ -66,11 +60,8 @@ export async function updateMotorcycle(id: string, data: {
   placa?: string;
   alias?: string;
 }) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   const existing = await prisma.motorcycle.findFirst({ where: { id, userId: profile.id } });
   if (!existing) throw new Error("Moto no encontrada");
@@ -86,11 +77,8 @@ export async function updateMotorcycle(id: string, data: {
 }
 
 export async function deleteMotorcycle(id: string) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   const existing = await prisma.motorcycle.findFirst({ where: { id, userId: profile.id } });
   if (!existing) throw new Error("Moto no encontrada");

@@ -51,7 +51,7 @@ export const serviceRequestSchema = z.object({
   motorcycleId: z.string().min(1, "Selecciona una moto"),
   categoryId: z.string().min(1, "Selecciona una categoría"),
   description: z.string().min(20, "La descripción debe tener al menos 20 caracteres").max(2000),
-  district: z.string().min(1, "El distrito es obligatorio"),
+  district: z.string().optional(),
   urgency: z.enum(["BAJA", "MEDIA", "ALTA", "URGENTE"]).default("MEDIA"),
 });
 

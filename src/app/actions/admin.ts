@@ -1,12 +1,10 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateProfile } from "@/lib/get-profile";
 
 export async function getMetrics() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
+  const profile = await getOrCreateProfile();
   if (!profile || profile.role !== "ADMIN") throw new Error("No autorizado - solo admin");
 
   const [totalRequests, totalQuotes, totalOrders, totalWorkshops, totalUsers, totalIncidents, totalReviews] = await Promise.all([

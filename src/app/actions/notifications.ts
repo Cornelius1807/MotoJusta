@@ -2,15 +2,13 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateProfile } from "@/lib/get-profile";
 import { revalidatePath } from "next/cache";
 
 // --- Get notifications ---
 export async function getNotifications() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   return prisma.notification.findMany({
     where: { userId: profile.id },
@@ -34,11 +32,8 @@ export async function markNotificationRead(notificationId: string) {
 
 // --- Mark all as read ---
 export async function markAllNotificationsRead() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   await prisma.notification.updateMany({
     where: { userId: profile.id, isRead: false },
@@ -59,10 +54,7 @@ export async function deleteNotification(notificationId: string) {
 
 // --- Get unread count ---
 export async function getUnreadCount() {
-  const { userId } = await auth();
-  if (!userId) return 0;
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
+  const profile = await getOrCreateProfile();
   if (!profile) return 0;
 
   return prisma.notification.count({

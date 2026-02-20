@@ -1,7 +1,7 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { getOrCreateProfile } from "@/lib/get-profile";
 import { workshopRegistrationSchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
@@ -13,11 +13,8 @@ export async function registerWorkshop(data: {
   phone?: string;
   description?: string;
 }) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   const parsed = workshopRegistrationSchema.parse(data);
 
@@ -41,10 +38,7 @@ export async function registerWorkshop(data: {
 }
 
 export async function verifyWorkshop(workshopId: string) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
+  const profile = await getOrCreateProfile();
   if (!profile || profile.role !== "ADMIN") throw new Error("No autorizado - solo admin");
 
   const workshop = await prisma.workshop.update({
@@ -69,9 +63,7 @@ export async function verifyWorkshop(workshopId: string) {
 }
 
 export async function getWorkshops() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
+  const profile = await getOrCreateProfile();
   if (!profile || profile.role !== "ADMIN") throw new Error("No autorizado - solo admin");
   return prisma.workshop.findMany({
     include: {
@@ -84,11 +76,8 @@ export async function getWorkshops() {
 }
 
 export async function getWorkshopProfile() {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
-  if (!profile) throw new Error("Perfil no encontrado");
+  const profile = await getOrCreateProfile();
+  if (!profile) throw new Error("No autorizado");
 
   const workshop = await prisma.workshop.findFirst({
     where: { userId: profile.id },
@@ -101,10 +90,7 @@ export async function getWorkshopProfile() {
 }
 
 export async function suspendWorkshop(workshopId: string, reason: string) {
-  const { userId } = await auth();
-  if (!userId) throw new Error("No autorizado");
-
-  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
+  const profile = await getOrCreateProfile();
   if (!profile || profile.role !== "ADMIN") throw new Error("No autorizado - solo admin");
 
   const workshop = await prisma.workshop.update({
