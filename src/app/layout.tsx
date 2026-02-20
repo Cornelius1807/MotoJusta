@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { ClerkProvider } from "@clerk/nextjs";
-import { esES } from "@clerk/localizations";
+import { ClerkWrapper } from "@/components/providers/clerk-wrapper";
+import { ClerkErrorBoundary } from "@/components/providers/clerk-error-boundary";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -28,29 +28,20 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-  const hasValidClerkKey = clerkKey && !clerkKey.includes("PLACEHOLDER");
-
-  const body = (
-    <html lang="es" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <TooltipProvider>
-          {children}
-        </TooltipProvider>
-        <Toaster richColors position="top-right" />
-      </body>
-    </html>
-  );
-
-  if (!hasValidClerkKey) {
-    return body;
-  }
-
   return (
-    <ClerkProvider localization={esES}>
-      {body}
-    </ClerkProvider>
+    <ClerkWrapper>
+      <html lang="es" suppressHydrationWarning>
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        >
+          <ClerkErrorBoundary>
+            <TooltipProvider>
+              {children}
+            </TooltipProvider>
+          </ClerkErrorBoundary>
+          <Toaster richColors position="top-right" />
+        </body>
+      </html>
+    </ClerkWrapper>
   );
 }

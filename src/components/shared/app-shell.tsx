@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
+import { SafeUserButton } from "@/components/shared/safe-user-button";
 import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -129,7 +129,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* User */}
       <div className="p-4 border-t">
         <div className="flex items-center gap-3">
-          <UserButton afterSignOutUrl="/" />
+          <SafeUserButton afterSignOutUrl="/" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium truncate">Mi cuenta</p>
             <p className="text-xs text-muted-foreground">Configuración</p>
@@ -173,7 +173,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </span>
             </Button>
 
-            <UserButton afterSignOutUrl="/" />
+            <SafeUserButton afterSignOutUrl="/" />
           </div>
         </header>
 
