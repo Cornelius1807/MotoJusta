@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
+import { createNotification } from "./notifications";
 
 // --- Get work order by ID ---
 export async function getWorkOrder(id: string) {
@@ -191,6 +192,22 @@ export async function completeService(workOrderId: string) {
       totalFinal,
     },
   });
+
+  // HU-17: Notify user that service is completed
+  try {
+    const request = await prisma.serviceRequest.findUnique({ where: { id: workOrder.requestId } });
+    if (request) {
+      await createNotification({
+        userId: request.userId,
+        requestId: request.id,
+        title: "Tu servicio ha sido completado",
+        body: `El taller ha completado el servicio. Total: S/ ${totalFinal}. Revisa y cierra la orden.`,
+        link: `/app/ordenes/${workOrderId}`,
+      });
+    }
+  } catch {
+    // Don't fail the main flow if notification fails
+  }
 
   logger.info("Service completed", { workOrderId, totalFinal });
   revalidatePath(`/app/ordenes/${workOrderId}`);

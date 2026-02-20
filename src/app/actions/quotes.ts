@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { quoteSchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
+import { createNotification } from "./notifications";
 
 export async function createQuote(data: Record<string, unknown>) {
   const { userId } = await auth();
@@ -107,6 +108,42 @@ export async function acceptQuote(quoteId: string) {
   ]);
 
   logger.info("Quote accepted, work order created", { quoteId, workOrderId: workOrder.id });
+
+  // HU-17: Notify winning workshop
+  try {
+    const winningWorkshop = await prisma.workshop.findUnique({
+      where: { id: quote.workshopId },
+      include: { user: true },
+    });
+    if (winningWorkshop?.user) {
+      await createNotification({
+        userId: winningWorkshop.user.id,
+        requestId: quote.requestId,
+        title: "Tu cotización fue aceptada",
+        body: `El motociclista aceptó tu cotización. Orden: ${orderNumber}`,
+        link: `/app/taller/ordenes/${workOrder.id}`,
+      });
+    }
+    // Notify losing workshops
+    const losingQuotes = await prisma.quote.findMany({
+      where: { requestId: quote.requestId, id: { not: quoteId } },
+      include: { workshop: { include: { user: true } } },
+    });
+    for (const lq of losingQuotes) {
+      if (lq.workshop?.user) {
+        await createNotification({
+          userId: lq.workshop.user.id,
+          requestId: quote.requestId,
+          title: "Tu cotización no fue seleccionada",
+          body: "El motociclista eligió otra cotización para esta solicitud.",
+          link: `/app/taller/solicitudes`,
+        });
+      }
+    }
+  } catch {
+    // Don't fail the main flow if notifications fail
+  }
+
   revalidatePath(`/app/solicitudes/${quote.requestId}`);
   return workOrder;
 }

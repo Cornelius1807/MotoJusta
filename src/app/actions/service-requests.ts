@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { serviceRequestSchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
+import { createNotification } from "./notifications";
 
 export async function getServiceRequests(filters?: { status?: string }) {
   const { userId } = await auth();
@@ -78,6 +79,19 @@ export async function createServiceRequest(data: {
       actorId: profile.id,
     },
   });
+
+  // HU-31: Notify user confirming request was submitted
+  try {
+    await createNotification({
+      userId: profile.id,
+      requestId: request.id,
+      title: "Solicitud publicada",
+      body: "Tu solicitud ha sido publicada. Los talleres podrán enviarte cotizaciones.",
+      link: `/app/solicitudes/${request.id}`,
+    });
+  } catch {
+    // Don't fail the main flow if notification fails
+  }
 
   logger.info("Service request created", { userId: profile.id, requestId: request.id });
   revalidatePath("/app/solicitudes");
