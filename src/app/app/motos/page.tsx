@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PageHeader } from "@/components/shared/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Plus, Bike, Pencil, Trash2 } from "lucide-react";
 import { MOTORCYCLE_BRANDS } from "@/lib/validations";
 import { toast } from "sonner";
+import { getMotorcycles, createMotorcycle, deleteMotorcycle } from "@/app/actions/motorcycles";
 
 interface Motorcycle {
   id: string;
@@ -34,10 +35,32 @@ const DEMO_MOTOS: Motorcycle[] = [
 
 export default function MotosPage() {
   const [motos, setMotos] = useState<Motorcycle[]>(DEMO_MOTOS);
+  const [isLoading, setIsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
   const [form, setForm] = useState({ brand: "", model: "", year: "", displacement: "", use: "", kmApprox: "", alias: "" });
 
-  const handleSubmit = () => {
+  useEffect(() => {
+    setIsLoading(true);
+    getMotorcycles()
+      .then((data) => {
+        setMotos(data.map((m) => ({
+          id: m.id,
+          brand: m.brand,
+          model: m.model,
+          year: m.year,
+          displacement: m.displacement ?? undefined,
+          use: m.use ?? undefined,
+          kmApprox: m.kmApprox ?? undefined,
+          alias: m.alias ?? undefined,
+        })));
+      })
+      .catch(() => {
+        setMotos(DEMO_MOTOS);
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const handleSubmit = async () => {
     if (!form.brand || !form.model || !form.year) {
       toast.error("Marca, modelo y año son obligatorios");
       return;
@@ -47,25 +70,56 @@ export default function MotosPage() {
       toast.error("Año no válido");
       return;
     }
-    const newMoto: Motorcycle = {
-      id: Date.now().toString(),
-      brand: form.brand,
-      model: form.model,
-      year,
-      displacement: form.displacement ? parseInt(form.displacement) : undefined,
-      use: form.use || undefined,
-      kmApprox: form.kmApprox ? parseInt(form.kmApprox) : undefined,
-      alias: form.alias || undefined,
-    };
-    setMotos([...motos, newMoto]);
-    setForm({ brand: "", model: "", year: "", displacement: "", use: "", kmApprox: "", alias: "" });
-    setIsOpen(false);
-    toast.success("Moto registrada correctamente");
+    try {
+      const created = await createMotorcycle({
+        brand: form.brand,
+        model: form.model,
+        year,
+        displacement: form.displacement ? parseInt(form.displacement) : undefined,
+        use: form.use || undefined,
+        kmApprox: form.kmApprox ? parseInt(form.kmApprox) : undefined,
+        alias: form.alias || undefined,
+      });
+      setMotos([...motos, {
+        id: created.id,
+        brand: created.brand,
+        model: created.model,
+        year: created.year,
+        displacement: created.displacement ?? undefined,
+        use: created.use ?? undefined,
+        kmApprox: created.kmApprox ?? undefined,
+        alias: created.alias ?? undefined,
+      }]);
+      setForm({ brand: "", model: "", year: "", displacement: "", use: "", kmApprox: "", alias: "" });
+      setIsOpen(false);
+      toast.success("Moto registrada correctamente");
+    } catch {
+      const newMoto: Motorcycle = {
+        id: Date.now().toString(),
+        brand: form.brand,
+        model: form.model,
+        year,
+        displacement: form.displacement ? parseInt(form.displacement) : undefined,
+        use: form.use || undefined,
+        kmApprox: form.kmApprox ? parseInt(form.kmApprox) : undefined,
+        alias: form.alias || undefined,
+      };
+      setMotos([...motos, newMoto]);
+      setForm({ brand: "", model: "", year: "", displacement: "", use: "", kmApprox: "", alias: "" });
+      setIsOpen(false);
+      toast.error("No se pudo guardar en el servidor. Moto agregada localmente.");
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setMotos(motos.filter((m) => m.id !== id));
-    toast.success("Moto eliminada");
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteMotorcycle(id);
+      setMotos(motos.filter((m) => m.id !== id));
+      toast.success("Moto eliminada");
+    } catch {
+      setMotos(motos.filter((m) => m.id !== id));
+      toast.error("No se pudo eliminar en el servidor. Eliminada localmente.");
+    }
   };
 
   return (
@@ -138,7 +192,29 @@ export default function MotosPage() {
         </Dialog>
       </PageHeader>
 
-      {motos.length === 0 ? (
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2].map((i) => (
+            <Card key={i}>
+              <CardContent className="pt-6">
+                <div className="animate-pulse space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-muted" />
+                    <div className="space-y-2 flex-1">
+                      <div className="h-4 bg-muted rounded w-3/4" />
+                      <div className="h-3 bg-muted rounded w-1/2" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="h-5 bg-muted rounded w-16" />
+                    <div className="h-5 bg-muted rounded w-16" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : motos.length === 0 ? (
         <EmptyState
           title="No tienes motos registradas"
           description="Registra tu primera moto para poder crear solicitudes de servicio"

@@ -1,10 +1,12 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { getWorkshopOrders } from "@/app/actions/work-orders";
 import Link from "next/link";
 import { Wrench, Clock, CheckCircle2, ChevronRight, Camera } from "lucide-react";
 
@@ -35,11 +37,42 @@ const demoOrders = [
 
 const statusColors: Record<string, string> = {
   EN_PROCESO: "bg-yellow-100 text-yellow-800",
+  EN_SERVICIO: "bg-yellow-100 text-yellow-800",
   COMPLETADA: "bg-green-100 text-green-800",
   PENDIENTE: "bg-blue-100 text-blue-800",
+  CERRADA: "bg-gray-100 text-gray-800",
 };
 
 export default function TallerOrdenesPage() {
+  const [orders, setOrders] = useState(demoOrders);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await getWorkshopOrders();
+        if (data && data.length > 0) {
+          setOrders(data.map((o: any) => ({
+            id: o.id,
+            moto: o.request?.motorcycle ? `${o.request.motorcycle.brand} ${o.request.motorcycle.model}` : "Moto",
+            category: o.request?.category?.name || "Servicio",
+            client: o.request?.user?.name || "Cliente",
+            status: o.status,
+            statusLabel: o.status === "EN_SERVICIO" ? "En proceso" : o.status === "COMPLETADA" ? "Completada" : o.status === "PENDIENTE" ? "Pendiente" : o.status,
+            total: o.totalFinal ?? o.totalAgreed ?? 0,
+            startDate: o.startedAt ? new Date(o.startedAt).toLocaleDateString("es-PE", { day: "numeric", month: "short", year: "numeric" }) : "",
+            progress: o.status === "COMPLETADA" || o.status === "CERRADA" ? 100 : o.status === "EN_SERVICIO" ? 60 : 0,
+          })));
+        }
+      } catch (err) {
+        console.error("Failed to load orders", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    load();
+  }, []);
+
   return (
     <div className="pb-20 lg:pb-0">
       <PageHeader
@@ -49,7 +82,9 @@ export default function TallerOrdenesPage() {
       />
 
       <div className="space-y-3">
-        {demoOrders.map((order, i) => (
+        {isLoading ? (
+          [1, 2].map((i) => <div key={i} className="h-32 rounded-lg bg-secondary animate-pulse" />)
+        ) : orders.map((order, i) => (
           <motion.div
             key={order.id}
             initial={{ opacity: 0, y: 10 }}

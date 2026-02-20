@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +18,8 @@ import {
   Download,
   ChevronRight,
 } from "lucide-react";
+import { toast } from "sonner";
+import { getUserOrders } from "@/app/actions/work-orders";
 
 interface HistoryItem {
   id: string;
@@ -78,16 +80,48 @@ const DEMO_HISTORY: HistoryItem[] = [
   },
 ];
 
+function formatDate(date: Date | string | null): string {
+  if (!date) return "";
+  return new Date(date).toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 export default function HistorialPage() {
   const [search, setSearch] = useState("");
+  const [history, setHistory] = useState<HistoryItem[]>(DEMO_HISTORY);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filtered = DEMO_HISTORY.filter((h) => {
+  useEffect(() => {
+    setIsLoading(true);
+    getUserOrders()
+      .then((data) => {
+        const completed = data.filter((o) => o.status === "COMPLETADA" || o.status === "CERRADA");
+        if (completed.length > 0) {
+          setHistory(completed.map((o) => ({
+            id: o.id,
+            orderId: o.id,
+            moto: `${o.request.motorcycle.brand} ${o.request.motorcycle.model}`,
+            category: o.request.category?.name || "Sin categoría",
+            workshop: o.workshop.name,
+            total: o.totalFinal ?? o.totalAgreed,
+            completedAt: formatDate(o.completedAt),
+            rating: o.review?.rating ?? null,
+            hasReceipt: o.status === "COMPLETADA" || o.status === "CERRADA",
+          })));
+        }
+      })
+      .catch(() => {
+        setHistory(DEMO_HISTORY);
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const filtered = history.filter((h) => {
     if (!search) return true;
     const q = search.toLowerCase();
     return h.moto.toLowerCase().includes(q) || h.workshop.toLowerCase().includes(q) || h.category.toLowerCase().includes(q);
   });
 
-  const totalSpent = DEMO_HISTORY.reduce((sum, h) => sum + h.total, 0);
+  const totalSpent = history.reduce((sum, h) => sum + h.total, 0);
 
   return (
     <div className="pb-20 lg:pb-0">
@@ -97,7 +131,7 @@ export default function HistorialPage() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <Card>
           <CardContent className="pt-4 text-center">
-            <p className="text-2xl font-bold text-primary">{DEMO_HISTORY.length}</p>
+            <p className="text-2xl font-bold text-primary">{history.length}</p>
             <p className="text-xs text-muted-foreground">Servicios</p>
           </CardContent>
         </Card>
@@ -110,14 +144,16 @@ export default function HistorialPage() {
         <Card>
           <CardContent className="pt-4 text-center">
             <p className="text-2xl font-bold text-yellow-500">
-              {(DEMO_HISTORY.filter((h) => h.rating).reduce((sum, h) => sum + (h.rating || 0), 0) / DEMO_HISTORY.filter((h) => h.rating).length).toFixed(1)}
+              {history.filter((h) => h.rating).length > 0
+                ? (history.filter((h) => h.rating).reduce((sum, h) => sum + (h.rating || 0), 0) / history.filter((h) => h.rating).length).toFixed(1)
+                : "—"}
             </p>
             <p className="text-xs text-muted-foreground">Rating promedio</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 text-center">
-            <p className="text-2xl font-bold text-green-600">{DEMO_HISTORY.filter((h) => h.hasReceipt).length}</p>
+            <p className="text-2xl font-bold text-green-600">{history.filter((h) => h.hasReceipt).length}</p>
             <p className="text-xs text-muted-foreground">Recibos</p>
           </CardContent>
         </Card>
@@ -131,7 +167,21 @@ export default function HistorialPage() {
 
       {/* History list */}
       <div className="space-y-3">
-        {filtered.map((item, i) => (
+        {isLoading ? [1, 2, 3].map((i) => (
+          <Card key={i}>
+            <CardContent className="pt-4 pb-4">
+              <div className="animate-pulse flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-muted shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 bg-muted rounded w-24" />
+                  <div className="h-4 bg-muted rounded w-1/2" />
+                  <div className="h-3 bg-muted rounded w-1/3" />
+                </div>
+                <div className="h-4 bg-muted rounded w-16" />
+              </div>
+            </CardContent>
+          </Card>
+        )) : filtered.map((item, i) => (
           <motion.div
             key={item.id}
             initial={{ opacity: 0, y: 10 }}

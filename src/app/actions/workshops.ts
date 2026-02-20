@@ -68,6 +68,21 @@ export async function verifyWorkshop(workshopId: string) {
   return workshop;
 }
 
+export async function getWorkshops() {
+  const { userId } = await auth();
+  if (!userId) throw new Error("No autorizado");
+  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
+  if (!profile || profile.role !== "ADMIN") throw new Error("No autorizado - solo admin");
+  return prisma.workshop.findMany({
+    include: {
+      user: { select: { name: true, email: true } },
+      categories: { include: { category: true } },
+      _count: { select: { reviews: true, workOrders: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 export async function suspendWorkshop(workshopId: string, reason: string) {
   const { userId } = await auth();
   if (!userId) throw new Error("No autorizado");

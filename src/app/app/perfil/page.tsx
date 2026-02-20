@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,8 +11,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DISTRICTS } from "@/lib/validations";
 import { toast } from "sonner";
 import { User, MapPin, Bell, Shield } from "lucide-react";
+import { getProfile, updateProfile } from "@/app/actions/profile";
 
 export default function PerfilPage() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState({
     name: "Juan Pérez",
     district: "Miraflores",
@@ -20,19 +23,50 @@ export default function PerfilPage() {
     phoneVisible: false,
   });
 
-  const handleSave = () => {
+  useEffect(() => {
+    setIsLoading(true);
+    getProfile()
+      .then((profile) => {
+        if (profile) {
+          setForm({
+            name: profile.name || "Juan Pérez",
+            district: profile.district || "Miraflores",
+            notifChannel: profile.notifChannel || "IN_APP",
+            phoneVisible: false,
+          });
+        }
+      })
+      .catch(() => {
+        // Keep default demo data as fallback
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
+
+  const handleSave = async () => {
     if (!form.name || !form.district) {
       toast.error("Nombre y distrito son obligatorios");
       return;
     }
-    toast.success("Perfil actualizado correctamente");
+    setIsSaving(true);
+    try {
+      await updateProfile({
+        name: form.name,
+        district: form.district,
+        notifChannel: form.notifChannel,
+      });
+      toast.success("Perfil actualizado correctamente");
+    } catch {
+      toast.error("Error al guardar. Intenta nuevamente.");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
     <div className="pb-20 lg:pb-0 max-w-2xl">
       <PageHeader title="Mi Perfil" description="Configura tus datos y preferencias" badge="MVP" />
 
-      <div className="space-y-6">
+      <div className={`space-y-6 ${isLoading ? "opacity-50 pointer-events-none" : ""}`}>
         <Card>
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
@@ -96,7 +130,9 @@ export default function PerfilPage() {
           </CardContent>
         </Card>
 
-        <Button onClick={handleSave} className="w-full">Guardar cambios</Button>
+        <Button onClick={handleSave} className="w-full" disabled={isLoading || isSaving}>
+          {isSaving ? "Guardando..." : "Guardar cambios"}
+        </Button>
       </div>
     </div>
   );

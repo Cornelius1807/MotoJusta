@@ -1,12 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import {
+  getNotifications,
+  markAllNotificationsRead,
+  deleteNotification as deleteNotificationAction,
+} from "@/app/actions/notifications";
 import {
   Bell,
   FileText,
@@ -43,18 +48,65 @@ const DEMO_NOTIFICATIONS: Notification[] = [
   { id: "5", title: "Califica tu servicio", description: "¿Cómo fue tu experiencia con MotoFix Pro?", type: "review", read: true, createdAt: "Hace 3 días" },
 ];
 
+function formatRelativeTime(date: Date | string): string {
+  const now = new Date();
+  const d = new Date(date);
+  const diffMs = now.getTime() - d.getTime();
+  const hours = Math.floor(diffMs / 3600000);
+  if (hours < 1) return "Hace menos de 1 hora";
+  if (hours < 24) return `Hace ${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `Hace ${days}d`;
+  const weeks = Math.floor(days / 7);
+  return `Hace ${weeks} semana${weeks > 1 ? "s" : ""}`;
+}
+
 export default function NotificacionesPage() {
   const [notifications, setNotifications] = useState(DEMO_NOTIFICATIONS);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    getNotifications()
+      .then((data) => {
+        if (data.length > 0) {
+          setNotifications(data.map((n) => ({
+            id: n.id,
+            title: n.title,
+            description: n.body,
+            type: "quote",
+            read: n.isRead,
+            createdAt: formatRelativeTime(n.createdAt),
+          })));
+        }
+      })
+      .catch(() => {
+        setNotifications(DEMO_NOTIFICATIONS);
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
 
   const unread = notifications.filter((n) => !n.read).length;
 
-  const markAllRead = () => {
-    setNotifications(notifications.map((n) => ({ ...n, read: true })));
-    toast.success("Todas las notificaciones marcadas como leídas");
+  const markAllRead = async () => {
+    try {
+      await markAllNotificationsRead();
+      setNotifications(notifications.map((n) => ({ ...n, read: true })));
+      toast.success("Todas las notificaciones marcadas como leídas");
+    } catch {
+      setNotifications(notifications.map((n) => ({ ...n, read: true })));
+      toast.error("Error al marcar como leídas en el servidor");
+    }
   };
 
-  const deleteNotification = (id: string) => {
-    setNotifications(notifications.filter((n) => n.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteNotificationAction(id);
+      setNotifications(notifications.filter((n) => n.id !== id));
+    } catch {
+      setNotifications(notifications.filter((n) => n.id !== id));
+      toast.error("Error al eliminar en el servidor");
+    }
   };
 
   return (
@@ -68,7 +120,20 @@ export default function NotificacionesPage() {
       </PageHeader>
 
       <div className="space-y-2">
-        {notifications.map((notif, i) => (
+        {isLoading ? [1, 2, 3].map((i) => (
+          <Card key={i}>
+            <CardContent className="pt-3 pb-3">
+              <div className="animate-pulse flex items-start gap-3">
+                <div className="w-4 h-4 bg-muted rounded mt-0.5" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 bg-muted rounded w-1/2" />
+                  <div className="h-3 bg-muted rounded w-3/4" />
+                  <div className="h-3 bg-muted rounded w-20" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )) : notifications.map((notif, i) => (
           <motion.div
             key={notif.id}
             initial={{ opacity: 0, x: -10 }}
@@ -89,7 +154,7 @@ export default function NotificacionesPage() {
                       <Clock className="w-3 h-3" /> {notif.createdAt}
                     </span>
                   </div>
-                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive" onClick={() => deleteNotification(notif.id)}>
+                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive" onClick={() => handleDelete(notif.id)}>
                     <Trash2 className="w-3 h-3" />
                   </Button>
                 </div>

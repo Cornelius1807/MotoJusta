@@ -1,0 +1,151 @@
+%% MotoJusta - Architecture Diagram
+%% Mantenimiento transparente de motocicletas
+
+graph TB
+  subgraph "Client Layer"
+    LP["🌐 Landing Page<br/>(SSG)"]
+    AUTH["🔐 Auth Pages<br/>(Clerk Components)"]
+    
+    subgraph "App (Authenticated)"
+      DASH["📊 Dashboard"]
+      
+      subgraph "Motociclista"
+        MOTOS["🏍️ Mis Motos"]
+        SOL_LIST["📋 Solicitudes"]
+        SOL_NEW["🆕 Nueva Solicitud<br/>(Wizard 6 pasos)"]
+        SOL_DET["🔍 Detalle Solicitud<br/>(Cotizaciones/Comparador/Chat)"]
+        ORD_DET["📦 Detalle Orden<br/>(Evidencia/Cambios/Reseña)"]
+        HIST["📜 Historial"]
+        NOTIF["🔔 Notificaciones"]
+        PERFIL["👤 Perfil"]
+      end
+      
+      subgraph "Taller"
+        T_SOL["📥 Solicitudes Disponibles"]
+        T_COT["💰 Crear Cotización"]
+        T_ORD["🔧 Gestión de Orden<br/>(Evidencia/Cambios/Cierre)"]
+        T_PERF["🏪 Perfil Taller"]
+      end
+      
+      subgraph "Admin"
+        A_TALL["✅ Verificar Talleres"]
+        A_INC["⚠️ Incidentes"]
+        A_MET["📈 Métricas"]
+        A_CFG["⚙️ Feature Flags"]
+      end
+    end
+  end
+
+  subgraph "Server Layer (Next.js App Router)"
+    MW["🛡️ Middleware<br/>(Clerk Auth)"]
+    
+    subgraph "Server Actions"
+      SA_MOTO["motorcycles.ts<br/>(CRUD)"]
+      SA_REQ["service-requests.ts<br/>(Crear/Listar/Filtros)"]
+      SA_QUOTE["quotes.ts<br/>(Crear/Aceptar)"]
+      SA_WO["work-orders.ts<br/>(Inicio/Completar/Cerrar)"]
+      SA_CR["change-requests.ts<br/>(Crear/Aprobar/Rechazar)"]
+      SA_EV["evidence.ts<br/>(Subir/Listar)"]
+      SA_CHAT["chat.ts<br/>(Enviar/Listar)"]
+      SA_REV["reviews.ts<br/>(Calificar)"]
+      SA_WS["workshops.ts<br/>(Registrar/Verificar/Suspender)"]
+      SA_INC["incidents.ts<br/>(Reportar/Resolver)"]
+      SA_NOT["notifications.ts<br/>(CRUD)"]
+      SA_PROF["profile.ts<br/>(Actualizar)"]
+      SA_AI["ai.ts<br/>(HU-33..HU-38)"]
+      SA_UP["upload.ts<br/>(Supabase Storage)"]
+      SA_ADM["admin.ts<br/>(Métricas)"]
+    end
+    
+    subgraph "API Routes"
+      WH["📨 Webhook Clerk<br/>(/api/webhooks/clerk)"]
+    end
+  end
+
+  subgraph "Data Layer"
+    PRISMA["🔷 Prisma ORM<br/>(25+ modelos)"]
+    NEON["🐘 Neon Serverless<br/>(PostgreSQL)"]
+    SUPA["📦 Supabase Storage<br/>(request-media, evidence-media,<br/>profile-avatars)"]
+  end
+
+  subgraph "External Services"
+    CLERK["🔑 Clerk<br/>(Auth + Webhooks)"]
+    VERCEL["▲ Vercel<br/>(Hosting + Edge)"]
+  end
+
+  subgraph "State Management"
+    ZUSTAND["🐻 Zustand Store<br/>(Feature Flags + localStorage)"]
+  end
+
+  subgraph "AI Engine (HU-33..HU-38)"
+    AI_DIAG["HU-33: Resumen Diagnóstico"]
+    AI_RED["HU-34: Red Flags"]
+    AI_CAT["HU-35: Sugerencia Categoría"]
+    AI_COMP["HU-36: Resumen Comparativo"]
+    AI_GLOS["HU-37: Glosario Técnico"]
+    AI_VIS["HU-38: Diagnóstico Visión<br/>(LABS)"]
+  end
+
+  %% Client → Server
+  LP --> AUTH
+  AUTH --> |"Clerk SDK"| CLERK
+  DASH --> MW
+  MW --> |"Protect /app/*"| SA_MOTO & SA_REQ & SA_QUOTE
+  
+  %% Motociclista flows
+  MOTOS --> SA_MOTO
+  SOL_NEW --> SA_REQ
+  SOL_DET --> SA_QUOTE & SA_CHAT
+  ORD_DET --> SA_WO & SA_CR & SA_REV
+  HIST --> SA_WO
+  NOTIF --> SA_NOT
+  PERFIL --> SA_PROF
+
+  %% Taller flows
+  T_SOL --> SA_REQ
+  T_COT --> SA_QUOTE
+  T_ORD --> SA_WO & SA_CR & SA_EV
+  T_PERF --> SA_WS
+
+  %% Admin flows  
+  A_TALL --> SA_WS
+  A_INC --> SA_INC
+  A_MET --> SA_ADM
+  A_CFG --> ZUSTAND
+
+  %% Server → Data
+  SA_MOTO & SA_REQ & SA_QUOTE & SA_WO --> PRISMA
+  SA_CR & SA_EV & SA_CHAT & SA_REV --> PRISMA
+  SA_WS & SA_INC & SA_NOT & SA_PROF --> PRISMA
+  SA_ADM --> PRISMA
+  PRISMA --> |"@prisma/adapter-neon"| NEON
+  SA_UP --> SUPA
+  SA_EV --> SA_UP
+
+  %% Webhook
+  CLERK --> |"user.created/updated/deleted"| WH
+  WH --> PRISMA
+
+  %% AI
+  SA_AI --> AI_DIAG & AI_RED & AI_CAT & AI_COMP & AI_GLOS & AI_VIS
+  SOL_DET --> SA_AI
+  ORD_DET --> SA_AI
+  SA_AI --> PRISMA
+
+  %% Feature Flags
+  ZUSTAND --> |"MVP/EXTRA/LABS badges"| DASH & SOL_DET & ORD_DET
+
+  %% Deploy
+  VERCEL --> |"Hosts"| LP & AUTH & DASH
+
+  classDef client fill:#fef3c7,stroke:#f59e0b,stroke-width:2px
+  classDef server fill:#dbeafe,stroke:#3b82f6,stroke-width:2px
+  classDef data fill:#d1fae5,stroke:#10b981,stroke-width:2px
+  classDef external fill:#fce7f3,stroke:#ec4899,stroke-width:2px
+  classDef ai fill:#ede9fe,stroke:#8b5cf6,stroke-width:2px
+
+  class LP,AUTH,DASH,MOTOS,SOL_LIST,SOL_NEW,SOL_DET,ORD_DET,HIST,NOTIF,PERFIL,T_SOL,T_COT,T_ORD,T_PERF,A_TALL,A_INC,A_MET,A_CFG client
+  class MW,SA_MOTO,SA_REQ,SA_QUOTE,SA_WO,SA_CR,SA_EV,SA_CHAT,SA_REV,SA_WS,SA_INC,SA_NOT,SA_PROF,SA_AI,SA_UP,SA_ADM,WH server
+  class PRISMA,NEON,SUPA data
+  class CLERK,VERCEL external
+  class AI_DIAG,AI_RED,AI_CAT,AI_COMP,AI_GLOS,AI_VIS,ZUSTAND ai

@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DISTRICTS } from "@/lib/validations";
+import { registerWorkshop } from "@/app/actions/workshops";
 import { toast } from "sonner";
 import {
   Store,
@@ -44,12 +45,28 @@ export default function TallerPerfilPage() {
     acceptsPickup: true,
   });
 
-  const handleSave = () => {
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSave = async () => {
     if (!form.name || !form.district || !form.address) {
       toast.error("Nombre, distrito y dirección son obligatorios");
       return;
     }
-    toast.success("Perfil de taller actualizado");
+    setIsSaving(true);
+    try {
+      await registerWorkshop({
+        name: form.name,
+        district: form.district,
+        address: form.address,
+        phone: form.phone || undefined,
+        description: form.description || undefined,
+      });
+      toast.success("Perfil de taller actualizado");
+    } catch (err: any) {
+      toast.error("Error al guardar", { description: err.message });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const toggleCategory = (cat: string) => {
@@ -162,7 +179,9 @@ export default function TallerPerfilPage() {
           </CardContent>
         </Card>
 
-        <Button onClick={handleSave} className="w-full">Guardar cambios</Button>
+        <Button onClick={handleSave} disabled={isSaving} className="w-full">
+          {isSaving ? "Guardando..." : "Guardar cambios"}
+        </Button>
       </div>
     </div>
   );

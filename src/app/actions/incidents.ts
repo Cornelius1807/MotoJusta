@@ -33,6 +33,20 @@ export async function createIncident(data: {
   return incident;
 }
 
+export async function getIncidents() {
+  const { userId } = await auth();
+  if (!userId) throw new Error("No autorizado");
+  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
+  if (!profile || profile.role !== "ADMIN") throw new Error("No autorizado - solo admin");
+  return prisma.incidentReport.findMany({
+    include: {
+      reporter: { select: { name: true, email: true } },
+      workshop: { select: { name: true, district: true } },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 export async function resolveIncident(incidentId: string, resolution: string, action?: string) {
   const { userId } = await auth();
   if (!userId) throw new Error("No autorizado");

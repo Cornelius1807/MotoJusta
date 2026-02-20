@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/shared/page-header";
 import { FeatureBadge } from "@/components/shared/feature-badge";
@@ -9,7 +9,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { getWorkshops, verifyWorkshop, suspendWorkshop } from "@/app/actions/workshops";
 import {
   Search,
   Store,
@@ -20,6 +22,7 @@ import {
   Star,
   Shield,
   Eye,
+  Loader2,
 } from "lucide-react";
 
 interface Workshop {
@@ -56,26 +59,89 @@ const statusIcons: Record<string, React.ReactNode> = {
   SUSPENDED: <Shield className="w-4 h-4 text-gray-600" />,
 };
 
+const STATUS_MAP: Record<string, Workshop["status"]> = {
+  PENDIENTE: "PENDING",
+  VERIFICADO: "VERIFIED",
+  RECHAZADO: "REJECTED",
+  SUSPENDIDO: "SUSPENDED",
+};
+
+const STATUS_LABEL_MAP: Record<string, string> = {
+  PENDIENTE: "Pendiente",
+  VERIFICADO: "Verificado",
+  RECHAZADO: "Rechazado",
+  SUSPENDIDO: "Suspendido",
+};
+
 export default function AdminTalleresPage() {
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
+  const [workshops, setWorkshops] = useState<Workshop[]>(DEMO_WORKSHOPS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const filtered = DEMO_WORKSHOPS.filter((w) => {
+  useEffect(() => {
+    loadWorkshops();
+  }, []);
+
+  async function loadWorkshops() {
+    try {
+      setIsLoading(true);
+      const data = await getWorkshops();
+      const mapped: Workshop[] = data.map((w) => ({
+        id: w.id,
+        name: w.name,
+        district: w.district,
+        status: STATUS_MAP[w.status] || "PENDING",
+        statusLabel: STATUS_LABEL_MAP[w.status] || w.status,
+        rating: w.rating,
+        reviews: w._count.reviews,
+        categories: w.categories.map((c) => c.category.name),
+        registeredAt: new Date(w.createdAt).toLocaleDateString("es-PE", { month: "short", year: "numeric" }),
+      }));
+      setWorkshops(mapped.length > 0 ? mapped : DEMO_WORKSHOPS);
+    } catch (error) {
+      toast.error("Error al cargar talleres");
+      setWorkshops(DEMO_WORKSHOPS);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const filtered = workshops.filter((w) => {
     if (search && !w.name.toLowerCase().includes(search.toLowerCase())) return false;
     if (tab !== "all" && w.status !== tab) return false;
     return true;
   });
 
-  const handleVerify = (id: string) => {
-    toast.success("Taller verificado correctamente");
+  const handleVerify = async (id: string) => {
+    try {
+      setActionLoading(id);
+      await verifyWorkshop(id);
+      toast.success("Taller verificado correctamente");
+      await loadWorkshops();
+    } catch (error) {
+      toast.error("Error al verificar taller");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleReject = (id: string) => {
     toast.error("Taller rechazado");
   };
 
-  const handleSuspend = (id: string) => {
-    toast("Taller suspendido", { description: "El taller no podrá recibir nuevas solicitudes" });
+  const handleSuspend = async (id: string) => {
+    try {
+      setActionLoading(id);
+      await suspendWorkshop(id, "Suspendido por administrador");
+      toast("Taller suspendido", { description: "El taller no podrá recibir nuevas solicitudes" });
+      await loadWorkshops();
+    } catch (error) {
+      toast.error("Error al suspender taller");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   return (
@@ -85,10 +151,10 @@ export default function AdminTalleresPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         {[
-          { label: "Verificados", value: DEMO_WORKSHOPS.filter((w) => w.status === "VERIFIED").length, color: "text-green-600" },
-          { label: "Pendientes", value: DEMO_WORKSHOPS.filter((w) => w.status === "PENDING").length, color: "text-yellow-600" },
-          { label: "Suspendidos", value: DEMO_WORKSHOPS.filter((w) => w.status === "SUSPENDED").length, color: "text-gray-600" },
-          { label: "Total", value: DEMO_WORKSHOPS.length, color: "text-primary" },
+          { label: "Verificados", value: workshops.filter((w) => w.status === "VERIFIED").length, color: "text-green-600" },
+          { label: "Pendientes", value: workshops.filter((w) => w.status === "PENDING").length, color: "text-yellow-600" },
+          { label: "Suspendidos", value: workshops.filter((w) => w.status === "SUSPENDED").length, color: "text-gray-600" },
+          { label: "Total", value: workshops.length, color: "text-primary" },
         ].map((s) => (
           <Card key={s.label}>
             <CardContent className="pt-4 text-center">
@@ -117,6 +183,13 @@ export default function AdminTalleresPage() {
       </Tabs>
 
       {/* Workshop list */}
+      {isLoading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((n) => (
+            <Card key={n}><CardContent className="pt-4"><div className="flex items-start gap-3"><Skeleton className="w-10 h-10 rounded-lg" /><div className="flex-1 space-y-2"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-60" /><Skeleton className="h-3 w-32" /></div></div></CardContent></Card>
+          ))}
+        </div>
+      ) : (
       <div className="space-y-3">
         {filtered.map((w, i) => (
           <motion.div
@@ -152,17 +225,17 @@ export default function AdminTalleresPage() {
                   <div className="flex gap-1 shrink-0">
                     {w.status === "PENDING" && (
                       <>
-                        <Button size="sm" variant="default" className="h-8 text-xs" onClick={() => handleVerify(w.id)}>
-                          <CheckCircle2 className="w-3 h-3 mr-1" /> Verificar
+                        <Button size="sm" variant="default" className="h-8 text-xs" onClick={() => handleVerify(w.id)} disabled={actionLoading === w.id}>
+                          {actionLoading === w.id ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <CheckCircle2 className="w-3 h-3 mr-1" />} Verificar
                         </Button>
-                        <Button size="sm" variant="ghost" className="h-8 text-xs text-destructive" onClick={() => handleReject(w.id)}>
+                        <Button size="sm" variant="ghost" className="h-8 text-xs text-destructive" onClick={() => handleReject(w.id)} disabled={actionLoading === w.id}>
                           <XCircle className="w-3 h-3" />
                         </Button>
                       </>
                     )}
                     {w.status === "VERIFIED" && (
-                      <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => handleSuspend(w.id)}>
-                        Suspender
+                      <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => handleSuspend(w.id)} disabled={actionLoading === w.id}>
+                        {actionLoading === w.id ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null} Suspender
                       </Button>
                     )}
                   </div>
@@ -171,7 +244,6 @@ export default function AdminTalleresPage() {
             </Card>
           </motion.div>
         ))}
-      </div>
-    </div>
+      </div>      )}    </div>
   );
 }

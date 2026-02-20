@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { getAvailableRequests } from "@/app/actions/service-requests";
 import Link from "next/link";
 import { Search, MapPin, Clock, Bike, ChevronRight, Filter } from "lucide-react";
 
@@ -74,8 +75,36 @@ const urgencyColors: Record<string, string> = {
 export default function TallerSolicitudesPage() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [requests, setRequests] = useState<AvailableRequest[]>(DEMO_REQUESTS);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filtered = DEMO_REQUESTS.filter((r) => {
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await getAvailableRequests();
+        if (data && data.length > 0) {
+          setRequests(data.map((r: any) => ({
+            id: r.id,
+            moto: r.motorcycle ? `${r.motorcycle.brand} ${r.motorcycle.model} (${r.motorcycle.year})` : "Moto",
+            category: r.category?.name || "General",
+            description: r.description,
+            district: r.user?.district || "",
+            urgency: r.urgency,
+            createdAt: new Date(r.createdAt).toLocaleDateString("es-PE"),
+            hasPhotos: (r._count?.media || 0) > 0,
+          })));
+        }
+      } catch (err) {
+        console.error("Failed to load requests", err);
+        // keep DEMO_REQUESTS as fallback
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const filtered = requests.filter((r) => {
     if (search && !r.description.toLowerCase().includes(search.toLowerCase()) && !r.moto.toLowerCase().includes(search.toLowerCase())) return false;
     if (categoryFilter !== "all" && r.category !== categoryFilter) return false;
     return true;
@@ -116,11 +145,15 @@ export default function TallerSolicitudesPage() {
       </div>
 
       {/* Results count */}
-      <p className="text-sm text-muted-foreground mb-4">{filtered.length} solicitudes disponibles</p>
+      <p className="text-sm text-muted-foreground mb-4">
+        {isLoading ? "Cargando..." : `${filtered.length} solicitudes disponibles`}
+      </p>
 
       {/* Request cards */}
       <div className="space-y-3">
-        {filtered.map((req, i) => (
+        {isLoading ? (
+          [1, 2, 3].map((i) => <div key={i} className="h-28 rounded-lg bg-secondary animate-pulse" />)
+        ) : filtered.map((req, i) => (
           <motion.div
             key={req.id}
             initial={{ opacity: 0, y: 10 }}

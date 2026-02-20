@@ -1,11 +1,15 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/shared/page-header";
 import { FeatureBadge } from "@/components/shared/feature-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import { getMetrics } from "@/app/actions/admin";
 import {
   Users,
   Store,
@@ -53,13 +57,54 @@ const categoryDistribution = [
 ];
 
 export default function AdminMetricasPage() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState(platformStats);
+  const [metrics, setMetrics] = useState(serviceMetrics);
+  const [workshops, setWorkshops] = useState(topWorkshops);
+
+  useEffect(() => {
+    loadMetrics();
+  }, []);
+
+  async function loadMetrics() {
+    try {
+      setIsLoading(true);
+      const data = await getMetrics();
+      setStats([
+        { label: "Usuarios totales", value: data.totalUsers.toLocaleString(), change: "", icon: Users, color: "text-blue-500" },
+        { label: "Talleres activos", value: data.totalWorkshops.toLocaleString(), change: "", icon: Store, color: "text-green-500" },
+        { label: "Solicitudes", value: data.totalRequests.toLocaleString(), change: "", icon: FileText, color: "text-primary" },
+        { label: "Órdenes de trabajo", value: data.totalOrders.toLocaleString(), change: "", icon: DollarSign, color: "text-yellow-500" },
+      ]);
+      setMetrics([
+        { label: "Cotizaciones totales", value: data.totalQuotes.toLocaleString() },
+        { label: "Tasa de cotización", value: `${(data.quoteRate * 100).toFixed(0)}%` },
+        { label: "Satisfacción promedio", value: `${data.avgRating.toFixed(1)} / 5.0` },
+        { label: "Reseñas totales", value: data.totalReviews.toLocaleString() },
+        { label: "Órdenes de trabajo", value: data.totalOrders.toLocaleString() },
+        { label: "Incidentes", value: data.totalIncidents.toLocaleString() },
+      ]);
+      if (data.topWorkshops.length > 0) {
+        setWorkshops(data.topWorkshops);
+      }
+    } catch (error) {
+      toast.error("Error al cargar métricas");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
   return (
     <div className="pb-20 lg:pb-0">
       <PageHeader title="Métricas de la Plataforma" description="Estadísticas y KPIs de MotoJusta" badge="EXTRA" />
 
       {/* Platform stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {platformStats.map((stat, i) => (
+        {isLoading ? (
+          [1, 2, 3, 4].map((n) => (
+            <Card key={n}><CardContent className="pt-6"><div className="flex items-center gap-3"><Skeleton className="w-10 h-10 rounded-lg" /><div className="space-y-2"><Skeleton className="h-6 w-16" /><Skeleton className="h-3 w-24" /></div></div></CardContent></Card>
+          ))
+        ) : stats.map((stat, i) => (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 20 }}
@@ -77,9 +122,11 @@ export default function AdminMetricasPage() {
                     <p className="text-xs text-muted-foreground">{stat.label}</p>
                   </div>
                 </div>
+                {stat.change && (
                 <Badge variant="secondary" className="mt-2 text-[10px] text-green-600">
                   <TrendingUp className="w-3 h-3 mr-1" /> {stat.change}
                 </Badge>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -96,7 +143,13 @@ export default function AdminMetricasPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {serviceMetrics.map((m) => (
+              {isLoading ? (
+                [1, 2, 3, 4, 5, 6].map((n) => (
+                  <div key={n} className="flex justify-between items-center py-2 border-b last:border-0">
+                    <Skeleton className="h-4 w-40" /><Skeleton className="h-4 w-16" />
+                  </div>
+                ))
+              ) : metrics.map((m) => (
                 <div key={m.label} className="flex justify-between items-center py-2 border-b last:border-0">
                   <span className="text-sm text-muted-foreground">{m.label}</span>
                   <span className="text-sm font-semibold">{m.value}</span>
@@ -138,7 +191,13 @@ export default function AdminMetricasPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {topWorkshops.map((w, i) => (
+            {isLoading ? (
+              [1, 2, 3, 4, 5].map((n) => (
+                <div key={n} className="flex items-center gap-3 py-2 border-b last:border-0">
+                  <Skeleton className="w-8 h-8 rounded-full" /><div className="flex-1 space-y-1"><Skeleton className="h-4 w-32" /><Skeleton className="h-3 w-20" /></div><div className="text-right space-y-1"><Skeleton className="h-4 w-10 ml-auto" /><Skeleton className="h-3 w-16 ml-auto" /></div>
+                </div>
+              ))
+            ) : workshops.map((w, i) => (
               <div key={w.name} className="flex items-center gap-3 py-2 border-b last:border-0">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
                   i === 0 ? "bg-yellow-100 text-yellow-800" : i === 1 ? "bg-gray-100 text-gray-800" : i === 2 ? "bg-orange-100 text-orange-800" : "bg-secondary text-muted-foreground"

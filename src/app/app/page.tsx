@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,22 +17,80 @@ import {
   AlertCircle,
   Plus,
 } from "lucide-react";
+import { toast } from "sonner";
+import { getServiceRequests } from "@/app/actions/service-requests";
+import { getUserOrders } from "@/app/actions/work-orders";
+import { getNotifications } from "@/app/actions/notifications";
 
-const stats = [
+const DEFAULT_STATS = [
   { label: "Solicitudes activas", value: "3", icon: FileText, color: "text-blue-500" },
   { label: "Cotizaciones recibidas", value: "7", icon: ClipboardList, color: "text-primary" },
   { label: "Órdenes en proceso", value: "1", icon: Clock, color: "text-yellow-500" },
   { label: "Servicios completados", value: "12", icon: CheckCircle2, color: "text-green-500" },
 ];
 
-const recentActivity = [
+const DEFAULT_ACTIVITY = [
   { id: "1", text: "Nueva cotización de Taller MotoSpeed", time: "Hace 2h", type: "quote" },
   { id: "2", text: "Servicio completado - Cambio de aceite", time: "Hace 1d", type: "complete" },
   { id: "3", text: "Solicitud publicada - Frenos", time: "Hace 2d", type: "request" },
   { id: "4", text: "Calificación enviada: ⭐ 4.5", time: "Hace 3d", type: "review" },
 ];
 
+function formatRelativeTime(date: Date | string): string {
+  const now = new Date();
+  const d = new Date(date);
+  const diffMs = now.getTime() - d.getTime();
+  const hours = Math.floor(diffMs / 3600000);
+  if (hours < 1) return "Hace menos de 1 hora";
+  if (hours < 24) return `Hace ${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `Hace ${days}d`;
+  const weeks = Math.floor(days / 7);
+  return `Hace ${weeks} semana${weeks > 1 ? "s" : ""}`;
+}
+
 export default function DashboardPage() {
+  const [stats, setStats] = useState(DEFAULT_STATS);
+  const [recentActivity, setRecentActivity] = useState(DEFAULT_ACTIVITY);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    Promise.allSettled([getServiceRequests(), getUserOrders(), getNotifications()])
+      .then(([reqResult, ordResult, notifResult]) => {
+        const requests = reqResult.status === "fulfilled" ? reqResult.value : [];
+        const orders = ordResult.status === "fulfilled" ? ordResult.value : [];
+        const notifications = notifResult.status === "fulfilled" ? notifResult.value : [];
+
+        const activeRequests = requests.filter((r) => !["COMPLETADA", "CANCELADA", "CERRADA"].includes(r.status));
+        const totalQuotes = requests.reduce((sum, r) => sum + (r._count?.quotes || 0), 0);
+        const inProcess = orders.filter((o) => o.status === "EN_SERVICIO" || o.status === "PENDIENTE");
+        const completed = orders.filter((o) => o.status === "COMPLETADA" || o.status === "CERRADA");
+
+        if (requests.length > 0 || orders.length > 0) {
+          setStats([
+            { label: "Solicitudes activas", value: String(activeRequests.length), icon: FileText, color: "text-blue-500" },
+            { label: "Cotizaciones recibidas", value: String(totalQuotes), icon: ClipboardList, color: "text-primary" },
+            { label: "Órdenes en proceso", value: String(inProcess.length), icon: Clock, color: "text-yellow-500" },
+            { label: "Servicios completados", value: String(completed.length), icon: CheckCircle2, color: "text-green-500" },
+          ]);
+        }
+
+        if (notifications.length > 0) {
+          setRecentActivity(notifications.slice(0, 4).map((n) => ({
+            id: n.id,
+            text: n.title,
+            time: formatRelativeTime(n.createdAt),
+            type: n.link?.includes("cotizacion") ? "quote" : n.title.toLowerCase().includes("completad") ? "complete" : "request",
+          })));
+        }
+      })
+      .catch(() => {
+        // Keep default demo data
+      })
+      .finally(() => setIsLoading(false));
+  }, []);
+
   return (
     <div className="pb-20 lg:pb-0">
       <PageHeader
@@ -57,7 +116,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className={`grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8 ${isLoading ? "animate-pulse" : ""}`}>
         {stats.map((stat, i) => (
           <motion.div
             key={stat.label}
