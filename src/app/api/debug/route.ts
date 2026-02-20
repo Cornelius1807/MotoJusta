@@ -1,137 +1,110 @@
 import { NextResponse } from "next/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const diagnostics: Record<string, any> = {
     timestamp: new Date().toISOString(),
-    nodeVersion: process.version,
   };
 
-  // 1. Test basic Prisma connection
+  // 1. Test auth() - this is the critical test
   try {
-    const { prisma } = await import("@/lib/prisma");
-    const count = await prisma.category.count();
-    diagnostics.prismaBasic = { status: "OK", categoryCount: count };
-  } catch (err: any) {
-    diagnostics.prismaBasic = {
-      status: "ERROR",
-      message: err.message,
-      stack: err.stack?.split("\n").slice(0, 8),
-    };
-  }
-
-  // 2. Test UserProfile table
-  try {
-    const { prisma } = await import("@/lib/prisma");
-    const profiles = await prisma.userProfile.findMany({ take: 5 });
-    diagnostics.userProfiles = {
+    const authResult = await auth();
+    diagnostics.auth = {
       status: "OK",
-      count: profiles.length,
-      sample: profiles.map((p: any) => ({
-        id: p.id,
-        clerkUserId: p.clerkUserId,
-        email: p.email,
-        role: p.role,
-      })),
+      userId: authResult.userId,
+      sessionId: authResult.sessionId ? "SET" : null,
     };
   } catch (err: any) {
-    diagnostics.userProfiles = {
+    diagnostics.auth = {
       status: "ERROR",
       message: err.message,
+      name: err.constructor?.name,
+      stack: err.stack?.split("\n").slice(0, 5),
+    };
+  }
+
+  // 2. Test currentUser()
+  try {
+    const user = await currentUser();
+    diagnostics.currentUser = user
+      ? {
+          status: "OK",
+          id: user.id,
+          firstName: user.firstName,
+          email: user.emailAddresses?.[0]?.emailAddress,
+        }
+      : { status: "NO_USER" };
+  } catch (err: any) {
+    diagnostics.currentUser = {
+      status: "ERROR",
+      message: err.message,
+    };
+  }
+
+  // 3. Test getOrCreateProfile
+  try {
+    const { getOrCreateProfile } = await import("@/lib/get-profile");
+    const profile = await getOrCreateProfile();
+    diagnostics.getOrCreateProfile = profile
+      ? {
+          status: "OK",
+          id: profile.id,
+          clerkUserId: profile.clerkUserId,
+          email: profile.email,
+          role: profile.role,
+        }
+      : { status: "NULL_PROFILE" };
+  } catch (err: any) {
+    diagnostics.getOrCreateProfile = {
+      status: "ERROR",
+      message: err.message,
+      name: err.constructor?.name,
+      code: (err as any).code,
       stack: err.stack?.split("\n").slice(0, 8),
     };
   }
 
-  // 3. Test Motorcycle table
+  // 4. Test getMotorcycles
   try {
-    const { prisma } = await import("@/lib/prisma");
-    const motos = await prisma.motorcycle.findMany({ take: 5 });
-    diagnostics.motorcycles = {
+    const { getMotorcycles } = await import("@/app/actions/motorcycles");
+    const motos = await getMotorcycles();
+    diagnostics.getMotorcycles = {
       status: "OK",
       count: motos.length,
-      sample: motos.map((m: any) => ({
+      motos: motos.map((m: any) => ({
         id: m.id,
         brand: m.brand,
         model: m.model,
-        userId: m.userId,
       })),
     };
   } catch (err: any) {
-    diagnostics.motorcycles = {
+    diagnostics.getMotorcycles = {
       status: "ERROR",
       message: err.message,
+      name: err.constructor?.name,
+      code: (err as any).code,
       stack: err.stack?.split("\n").slice(0, 8),
     };
   }
 
-  // 4. Test creating + deleting a motorcycle for the real user
+  // 5. Test basic Prisma
   try {
     const { prisma } = await import("@/lib/prisma");
-    const realUser = await prisma.userProfile.findFirst({
-      where: { email: "mmatiasac18@gmail.com" },
-    });
-    if (realUser) {
-      const testMoto = await prisma.motorcycle.create({
-        data: {
-          brand: "Test",
-          model: "Debug",
-          year: 2025,
-          userId: realUser.id,
-        },
-      });
-      diagnostics.createMotorcycleTest = {
-        status: "OK",
-        created: { id: testMoto.id, brand: testMoto.brand },
-      };
-      // Clean up
-      await prisma.motorcycle.delete({ where: { id: testMoto.id } });
-      diagnostics.createMotorcycleTest.deleted = true;
-    } else {
-      diagnostics.createMotorcycleTest = { status: "NO_USER_FOUND" };
-    }
+    const count = await prisma.category.count();
+    diagnostics.prisma = { status: "OK", categoryCount: count };
   } catch (err: any) {
-    diagnostics.createMotorcycleTest = {
-      status: "ERROR",
-      message: err.message,
-      code: err.code,
-      meta: err.meta,
-      stack: err.stack?.split("\n").slice(0, 8),
-    };
+    diagnostics.prisma = { status: "ERROR", message: err.message };
   }
 
-  // 5. Test auth() import (will fail without request context but shows if module loads)
-  try {
-    const { auth } = await import("@clerk/nextjs/server");
-    diagnostics.clerkAuth = { status: "MODULE_LOADED" };
-    try {
-      const result = await auth();
-      diagnostics.clerkAuth.result = {
-        userId: result.userId,
-        sessionId: result.sessionId,
-      };
-    } catch (authErr: any) {
-      diagnostics.clerkAuth.callError = authErr.message;
-    }
-  } catch (err: any) {
-    diagnostics.clerkAuth = {
-      status: "IMPORT_ERROR",
-      message: err.message,
-    };
-  }
-
-  // 6. Check Clerk config
-  diagnostics.clerk = {
-    publishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+  // 6. Env info
+  diagnostics.env = {
+    clerkPubKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
       ? `${process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.substring(0, 20)}...`
       : "NOT SET",
-    secretKey: process.env.CLERK_SECRET_KEY ? "SET" : "NOT SET",
     isDevKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith("pk_test_"),
-  };
-
-  // 7. Check BLOB token
-  diagnostics.blob = {
-    BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN ? "SET" : "NOT SET",
+    blobToken: process.env.BLOB_READ_WRITE_TOKEN ? "SET" : "NOT SET",
   };
 
   return NextResponse.json(diagnostics, { status: 200 });
