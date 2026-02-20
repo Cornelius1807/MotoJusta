@@ -43,8 +43,13 @@ export default function MotosPage() {
   useEffect(() => {
     setIsLoading(true);
     getMotorcycles()
-      .then((data) => {
-        setMotos(data.map((m) => ({
+      .then((result) => {
+        if (!result.success) {
+          toast.error(result.error);
+          setMotos([]);
+          return;
+        }
+        setMotos(result.data.map((m: any) => ({
           id: m.id,
           brand: m.brand,
           model: m.model,
@@ -52,13 +57,13 @@ export default function MotosPage() {
           displacement: m.displacement ?? undefined,
           use: m.use ?? undefined,
           kmApprox: m.kmApprox ?? undefined,
-          placa: (m as any).placa ?? undefined,
+          placa: m.placa ?? undefined,
           alias: m.alias ?? undefined,
         })));
       })
       .catch((err) => {
         console.error("[Motos] Error loading:", err);
-        toast.error(`Error al cargar motos: ${err.message || "Error desconocido"}`);
+        toast.error("Error inesperado al cargar motos");
         setMotos([]);
       })
       .finally(() => setIsLoading(false));
@@ -75,7 +80,7 @@ export default function MotosPage() {
       return;
     }
     try {
-      const created = await createMotorcycle({
+      const result = await createMotorcycle({
         brand: form.brand,
         model: form.model,
         year,
@@ -85,6 +90,11 @@ export default function MotosPage() {
         placa: form.placa || undefined,
         alias: form.alias || undefined,
       });
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+      const created = result.data;
       setMotos([...motos, {
         id: created.id,
         brand: created.brand,
@@ -93,7 +103,7 @@ export default function MotosPage() {
         displacement: created.displacement ?? undefined,
         use: created.use ?? undefined,
         kmApprox: created.kmApprox ?? undefined,
-        placa: (created as any).placa ?? undefined,
+        placa: created.placa ?? undefined,
         alias: created.alias ?? undefined,
       }]);
       setForm({ brand: "", model: "", year: "", displacement: "", use: "", kmApprox: "", placa: "", alias: "" });
@@ -101,18 +111,17 @@ export default function MotosPage() {
       toast.success("Moto registrada correctamente");
     } catch (err: any) {
       console.error("[Motos] Error creating:", err);
-      toast.error(`Error al registrar moto: ${err.message || "Error desconocido"}`);
+      toast.error("Error inesperado al registrar moto");
     }
   };
 
   const handleDelete = async (id: string) => {
-    try {
-      await deleteMotorcycle(id);
+    const result = await deleteMotorcycle(id);
+    if (result.success) {
       setMotos(motos.filter((m) => m.id !== id));
       toast.success("Moto eliminada");
-    } catch {
-      setMotos(motos.filter((m) => m.id !== id));
-      toast.error("No se pudo eliminar en el servidor. Eliminada localmente.");
+    } else {
+      toast.error(result.error);
     }
   };
 

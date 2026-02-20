@@ -6,22 +6,29 @@ import { motorcycleSchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 
-export async function getMotorcycles() {
+// Return-based pattern so errors reach the client in production
+// (Next.js strips thrown error messages in production builds)
+
+type ActionResult<T = unknown> =
+  | { success: true; data: T }
+  | { success: false; error: string };
+
+export async function getMotorcycles(): Promise<ActionResult<any[]>> {
   try {
     const profile = await getOrCreateProfile();
     if (!profile) {
       logger.warn("[getMotorcycles] No profile found (user not authenticated)");
-      return [];
+      return { success: true, data: [] };
     }
 
     const motos = await prisma.motorcycle.findMany({
       where: { userId: profile.id },
       orderBy: { createdAt: "desc" },
     });
-    return motos;
+    return { success: true, data: motos };
   } catch (err: any) {
     logger.error("[getMotorcycles] Error", { message: err.message, stack: err.stack?.slice(0, 500) });
-    throw new Error(`Error al cargar motos: ${err.message}`);
+    return { success: false, error: `Error al cargar motos: ${err.message}` };
   }
 }
 
@@ -34,10 +41,10 @@ export async function createMotorcycle(data: {
   kmApprox?: number;
   placa?: string;
   alias?: string;
-}) {
+}): Promise<ActionResult<any>> {
   try {
     const profile = await getOrCreateProfile();
-    if (!profile) throw new Error("No autorizado — no se encontró perfil de usuario");
+    if (!profile) return { success: false, error: "No autorizado — inicia sesión primero" };
 
     const parsed = motorcycleSchema.parse(data);
 
@@ -57,10 +64,13 @@ export async function createMotorcycle(data: {
 
     logger.info("Motorcycle created", { userId: profile.id, motoId: moto.id });
     revalidatePath("/app/motos");
-    return moto;
+    return { success: true, data: moto };
   } catch (err: any) {
     logger.error("[createMotorcycle] Error", { message: err.message, code: err.code, stack: err.stack?.slice(0, 500) });
-    throw new Error(`Error al crear moto: ${err.message}`);
+    const msg = err.code === "P2002"
+      ? "Ya existe una moto con esos datos (marca, modelo, año y alias duplicados)"
+      : `Error al crear moto: ${err.message}`;
+    return { success: false, error: msg };
   }
 }
 
@@ -73,13 +83,13 @@ export async function updateMotorcycle(id: string, data: {
   kmApprox?: number;
   placa?: string;
   alias?: string;
-}) {
+}): Promise<ActionResult<any>> {
   try {
     const profile = await getOrCreateProfile();
-    if (!profile) throw new Error("No autorizado");
+    if (!profile) return { success: false, error: "No autorizado" };
 
     const existing = await prisma.motorcycle.findFirst({ where: { id, userId: profile.id } });
-    if (!existing) throw new Error("Moto no encontrada");
+    if (!existing) return { success: false, error: "Moto no encontrada" };
 
     const updateData: any = { ...data, use: data.use || null, placa: data.placa !== undefined ? (data.placa || null) : undefined };
     const moto = await prisma.motorcycle.update({
@@ -88,27 +98,28 @@ export async function updateMotorcycle(id: string, data: {
     });
 
     revalidatePath("/app/motos");
-    return moto;
+    return { success: true, data: moto };
   } catch (err: any) {
     logger.error("[updateMotorcycle] Error", { message: err.message, stack: err.stack?.slice(0, 500) });
-    throw new Error(`Error al actualizar moto: ${err.message}`);
+    return { success: false, error: `Error al actualizar moto: ${err.message}` };
   }
 }
 
-export async function deleteMotorcycle(id: string) {
+export async function deleteMotorcycle(id: string): Promise<ActionResult<void>> {
   try {
     const profile = await getOrCreateProfile();
-    if (!profile) throw new Error("No autorizado");
+    if (!profile) return { success: false, error: "No autorizado" };
 
     const existing = await prisma.motorcycle.findFirst({ where: { id, userId: profile.id } });
-    if (!existing) throw new Error("Moto no encontrada");
+    if (!existing) return { success: false, error: "Moto no encontrada" };
 
     await prisma.motorcycle.delete({ where: { id } });
 
     logger.info("Motorcycle deleted", { userId: profile.id, motoId: id });
     revalidatePath("/app/motos");
+    return { success: true, data: undefined };
   } catch (err: any) {
     logger.error("[deleteMotorcycle] Error", { message: err.message, stack: err.stack?.slice(0, 500) });
-    throw new Error(`Error al eliminar moto: ${err.message}`);
+    return { success: false, error: `Error al eliminar moto: ${err.message}` };
   }
 }
