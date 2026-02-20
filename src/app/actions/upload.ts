@@ -1,13 +1,8 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
+import { put } from "@vercel/blob";
 import { logger } from "@/lib/logger";
-
-// ---------------------------------------------------------------------------
-// Supabase storage has been REMOVED.  This module now returns placeholder URLs
-// so that the rest of the application keeps working without a real object store.
-// When a real storage provider is configured, replace the stub below.
-// ---------------------------------------------------------------------------
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/quicktime"];
@@ -41,22 +36,28 @@ export async function uploadFile(
     throw new Error("El video excede el límite de 50MB");
   }
 
-  // --- Stub: no real upload, return a placeholder URL ---
   const ext = file.name.split(".").pop() || "jpg";
   const timestamp = Date.now();
-  const fakePath = folder
-    ? `${folder}/${userId}_${timestamp}.${ext}`
-    : `${userId}_${timestamp}.${ext}`;
+  const pathname = folder
+    ? `${bucket}/${folder}/${userId}_${timestamp}.${ext}`
+    : `${bucket}/${userId}_${timestamp}.${ext}`;
 
-  logger.warn(
-    "[upload] File storage is NOT configured — returning placeholder URL",
-    { bucket, path: fakePath, originalName: file.name, size: file.size }
-  );
+  // Upload to Vercel Blob
+  const blob = await put(pathname, file, {
+    access: "public",
+    addRandomSuffix: true,
+  });
 
-  const placeholderUrl = `/uploads/${bucket}/${fakePath}`;
+  logger.info("[upload] File uploaded to Vercel Blob", {
+    bucket,
+    pathname,
+    url: blob.url,
+    originalName: file.name,
+    size: file.size,
+  });
 
   return {
-    url: placeholderUrl,
+    url: blob.url,
     mediaType: isImage ? "IMAGE" : "VIDEO",
     fileName: file.name,
   };
