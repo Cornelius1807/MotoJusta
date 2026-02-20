@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { FEATURE_FLAGS } from "@/lib/feature-flags";
-import { useFeatureFlagsStore } from "@/stores/feature-flags-store";
+import { useFeatureFlags } from "@/stores/feature-flags-store";
 import { toast } from "sonner";
 import {
   Settings,
@@ -26,7 +26,7 @@ const badgeConfig = {
 };
 
 export default function AdminConfigPage() {
-  const { flags, isEnabled, toggleFlag, mvpMode, toggleMvpMode } = useFeatureFlagsStore();
+  const { flags, isEnabled, toggleFlag, mvpMode, toggleMvpMode } = useFeatureFlags();
 
   const mvpFlags = FEATURE_FLAGS.filter((f) => f.badge === "MVP");
   const extraFlags = FEATURE_FLAGS.filter((f) => f.badge === "EXTRA");
