@@ -75,7 +75,7 @@ export async function createServiceRequest(data: {
       requestId: request.id,
       fromStatus: "BORRADOR",
       toStatus: "PUBLICADA",
-      changedById: profile.id,
+      actorId: profile.id,
     },
   });
 
@@ -97,8 +97,8 @@ export async function getServiceRequestById(id: string) {
       user: { select: { name: true, district: true } },
       quotes: {
         include: {
-          workshop: { select: { name: true, district: true, rating: true, reviewCount: true } },
-          items: true,
+          workshop: { select: { name: true, district: true, rating: true, totalServices: true } },
+          parts: true,
         },
         orderBy: { createdAt: "asc" },
       },

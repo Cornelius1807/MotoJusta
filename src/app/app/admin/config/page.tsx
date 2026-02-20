@@ -26,14 +26,14 @@ const badgeConfig = {
 };
 
 export default function AdminConfigPage() {
-  const { flags, isEnabled, toggleFlag, mvpMode, toggleMvpMode } = useFeatureFlags();
+  const { flags, isEnabled, setFlag, mvpMode, setMvpMode } = useFeatureFlags();
 
   const mvpFlags = FEATURE_FLAGS.filter((f) => f.badge === "MVP");
   const extraFlags = FEATURE_FLAGS.filter((f) => f.badge === "EXTRA");
   const labsFlags = FEATURE_FLAGS.filter((f) => f.badge === "LABS");
 
   const handleMvpToggle = () => {
-    toggleMvpMode();
+    setMvpMode(!mvpMode);
     toast(mvpMode ? "Modo completo activado" : "Modo MVP activado", {
       description: mvpMode ? "Todas las features configuradas están visibles" : "Solo features MVP están activas",
     });
@@ -71,7 +71,7 @@ export default function AdminConfigPage() {
           <CardHeader>
             <div className="flex items-center gap-2">
               <CardTitle className="text-base">{section.title}</CardTitle>
-              <FeatureBadge badge={section.badge} />
+              <FeatureBadge type={section.badge} />
               <Badge variant="secondary" className="text-[10px]">{section.flags.length} features</Badge>
             </div>
           </CardHeader>
@@ -92,7 +92,7 @@ export default function AdminConfigPage() {
                       <Switch
                         checked={enabled}
                         onCheckedChange={() => {
-                          toggleFlag(flag.key);
+                          setFlag(flag.key, !enabled);
                           toast(`${flag.name} ${enabled ? "desactivada" : "activada"}`);
                         }}
                         disabled={mvpMode && section.badge !== "MVP"}

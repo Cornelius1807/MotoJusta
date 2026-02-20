@@ -167,7 +167,7 @@ export default function OrdenDetailPage() {
                 <div className="flex items-center gap-2">
                   <Receipt className="w-4 h-4 text-primary" />
                   <span className="text-sm font-medium">Recibo digital</span>
-                  <FeatureBadge badge="EXTRA" />
+                  <FeatureBadge type="EXTRA" />
                 </div>
                 <Button variant="outline" size="sm" className="gap-1">
                   <Download className="w-3 h-3" /> Descargar PDF
@@ -183,7 +183,7 @@ export default function OrdenDetailPage() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <CardTitle className="text-base">Evidencia fotográfica</CardTitle>
-                <FeatureBadge badge="EXTRA" />
+                <FeatureBadge type="EXTRA" />
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -210,7 +210,7 @@ export default function OrdenDetailPage() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <CardTitle className="text-base">Solicitudes de cambio</CardTitle>
-                <FeatureBadge badge="MVP" />
+                <FeatureBadge type="MVP" />
               </div>
               <p className="text-xs text-muted-foreground">
                 Cualquier cambio en el servicio debe ser aprobado por ti antes de ejecutarse.
@@ -241,7 +241,7 @@ export default function OrdenDetailPage() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <CardTitle className="text-base">Calificar servicio</CardTitle>
-                <FeatureBadge badge="MVP" />
+                <FeatureBadge type="MVP" />
               </div>
             </CardHeader>
             <CardContent className="space-y-4">

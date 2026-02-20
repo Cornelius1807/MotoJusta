@@ -11,6 +11,8 @@
   "dependencies": {
     "@clerk/localizations": "^3.36.0",
     "@clerk/nextjs": "^6.38.0",
+    "@neondatabase/serverless": "^1.0.2",
+    "@prisma/adapter-neon": "^7.4.1",
     "@prisma/client": "^7.4.1",
     "@supabase/supabase-js": "^2.97.0",
     "class-variance-authority": "^0.7.1",

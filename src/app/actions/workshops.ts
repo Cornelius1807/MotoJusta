@@ -32,7 +32,7 @@ export async function registerWorkshop(data: {
   // Update user role to WORKSHOP
   await prisma.userProfile.update({
     where: { id: profile.id },
-    data: { role: "WORKSHOP" },
+    data: { role: "TALLER" },
   });
 
   logger.info("Workshop registered", { userId: profile.id, workshopId: workshop.id });
@@ -51,7 +51,6 @@ export async function verifyWorkshop(workshopId: string) {
     where: { id: workshopId },
     data: {
       status: "VERIFICADO",
-      verifiedAt: new Date(),
     },
   });
 

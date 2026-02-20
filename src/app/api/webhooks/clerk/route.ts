@@ -50,7 +50,7 @@ export async function POST(req: Request) {
           clerkUserId: id,
           email: email || "",
           name,
-          role: "MOTORCYCLIST",
+          role: "MOTOCICLISTA",
         },
       });
       logger.info("User profile created from webhook", { clerkUserId: id });

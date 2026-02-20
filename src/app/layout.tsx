@@ -28,18 +28,29 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const hasValidClerkKey = clerkKey && !clerkKey.includes("PLACEHOLDER");
+
+  const body = (
+    <html lang="es" suppressHydrationWarning>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+        <TooltipProvider>
+          {children}
+        </TooltipProvider>
+        <Toaster richColors position="top-right" />
+      </body>
+    </html>
+  );
+
+  if (!hasValidClerkKey) {
+    return body;
+  }
+
   return (
     <ClerkProvider localization={esES}>
-      <html lang="es" suppressHydrationWarning>
-        <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        >
-          <TooltipProvider>
-            {children}
-          </TooltipProvider>
-          <Toaster richColors position="top-right" />
-        </body>
-      </html>
+      {body}
     </ClerkProvider>
   );
 }

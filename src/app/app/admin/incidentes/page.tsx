@@ -107,7 +107,7 @@ export default function AdminIncidentesPage() {
   return (
     <div className="pb-20 lg:pb-0">
       <PageHeader title="Gestión de Incidentes" description="Revisa y resuelve los incidentes reportados" badge="EXTRA">
-        <FeatureBadge badge="EXTRA" />
+        <FeatureBadge type="EXTRA" />
       </PageHeader>
 
       {/* Stats */}

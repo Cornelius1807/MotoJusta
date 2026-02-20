@@ -115,7 +115,7 @@ export default function CotizarPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CardTitle className="text-base">Repuestos</CardTitle>
-              <FeatureBadge badge="MVP" />
+              <FeatureBadge type="MVP" />
             </div>
             <Button variant="outline" size="sm" onClick={addPart} className="gap-1">
               <Plus className="w-3 h-3" /> Agregar

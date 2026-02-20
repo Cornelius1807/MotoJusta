@@ -117,7 +117,7 @@ export default function OrdenDetailPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <CardTitle className="text-base">Evidencia fotográfica</CardTitle>
-                  <FeatureBadge badge="EXTRA" />
+                  <FeatureBadge type="EXTRA" />
                 </div>
               </div>
             </CardHeader>
@@ -158,7 +158,7 @@ export default function OrdenDetailPage() {
             <CardHeader>
               <div className="flex items-center gap-2">
                 <CardTitle className="text-base">Solicitar cambio</CardTitle>
-                <FeatureBadge badge="MVP" />
+                <FeatureBadge type="MVP" />
               </div>
               <p className="text-xs text-muted-foreground">
                 Cualquier cambio en repuestos o costos debe ser aprobado por el motociclista (bloqueante).

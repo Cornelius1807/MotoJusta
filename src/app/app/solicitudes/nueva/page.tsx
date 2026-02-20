@@ -173,7 +173,7 @@ export default function NuevaSolicitudPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <CardTitle className="text-base">Categoría del servicio</CardTitle>
-                  <FeatureBadge badge="MVP" />
+                  <FeatureBadge type="MVP" />
                 </div>
               </CardHeader>
               <CardContent>
@@ -199,7 +199,7 @@ export default function NuevaSolicitudPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <CardTitle className="text-base">Preguntas guía</CardTitle>
-                  <FeatureBadge badge="MVP" />
+                  <FeatureBadge type="MVP" />
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">
@@ -277,7 +277,7 @@ export default function NuevaSolicitudPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <CardTitle className="text-base">Fotos (opcional)</CardTitle>
-                  <FeatureBadge badge="MVP" />
+                  <FeatureBadge type="MVP" />
                 </div>
               </CardHeader>
               <CardContent>
