@@ -65,7 +65,62 @@ export async function GET() {
     };
   }
 
-  // 4. Check Clerk config
+  // 4. Test creating + deleting a motorcycle for the real user
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    const realUser = await prisma.userProfile.findFirst({
+      where: { email: "mmatiasac18@gmail.com" },
+    });
+    if (realUser) {
+      const testMoto = await prisma.motorcycle.create({
+        data: {
+          brand: "Test",
+          model: "Debug",
+          year: 2025,
+          userId: realUser.id,
+        },
+      });
+      diagnostics.createMotorcycleTest = {
+        status: "OK",
+        created: { id: testMoto.id, brand: testMoto.brand },
+      };
+      // Clean up
+      await prisma.motorcycle.delete({ where: { id: testMoto.id } });
+      diagnostics.createMotorcycleTest.deleted = true;
+    } else {
+      diagnostics.createMotorcycleTest = { status: "NO_USER_FOUND" };
+    }
+  } catch (err: any) {
+    diagnostics.createMotorcycleTest = {
+      status: "ERROR",
+      message: err.message,
+      code: err.code,
+      meta: err.meta,
+      stack: err.stack?.split("\n").slice(0, 8),
+    };
+  }
+
+  // 5. Test auth() import (will fail without request context but shows if module loads)
+  try {
+    const { auth } = await import("@clerk/nextjs/server");
+    diagnostics.clerkAuth = { status: "MODULE_LOADED" };
+    try {
+      const result = await auth();
+      diagnostics.clerkAuth.result = {
+        userId: result.userId,
+        sessionId: result.sessionId,
+      };
+    } catch (authErr: any) {
+      diagnostics.clerkAuth.callError = authErr.message;
+    }
+  } catch (err: any) {
+    diagnostics.clerkAuth = {
+      status: "IMPORT_ERROR",
+      message: err.message,
+    };
+  }
+
+  // 6. Check Clerk config
   diagnostics.clerk = {
     publishableKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
       ? `${process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.substring(0, 20)}...`
@@ -74,41 +129,10 @@ export async function GET() {
     isDevKey: process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.startsWith("pk_test_"),
   };
 
-  // 5. Check BLOB token
+  // 7. Check BLOB token
   diagnostics.blob = {
     BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN ? "SET" : "NOT SET",
   };
-
-  // 6. Test the full getOrCreateProfile flow (without auth, just show what would happen)
-  diagnostics.schemaInfo = {};
-  try {
-    const { prisma } = await import("@/lib/prisma");
-    // Check what columns exist on UserProfile
-    const result = await (prisma as any).$queryRaw`
-      SELECT column_name, data_type, is_nullable 
-      FROM information_schema.columns 
-      WHERE table_name = 'UserProfile'
-      ORDER BY ordinal_position`;
-    diagnostics.schemaInfo.UserProfile = result;
-  } catch (err: any) {
-    diagnostics.schemaInfo.UserProfile = {
-      error: err.message,
-    };
-  }
-
-  try {
-    const { prisma } = await import("@/lib/prisma");
-    const result = await (prisma as any).$queryRaw`
-      SELECT column_name, data_type, is_nullable 
-      FROM information_schema.columns 
-      WHERE table_name = 'Motorcycle'
-      ORDER BY ordinal_position`;
-    diagnostics.schemaInfo.Motorcycle = result;
-  } catch (err: any) {
-    diagnostics.schemaInfo.Motorcycle = {
-      error: err.message,
-    };
-  }
 
   return NextResponse.json(diagnostics, { status: 200 });
 }
