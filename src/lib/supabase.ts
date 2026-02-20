@@ -1,12 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// Server-side client with service role (for admin operations)
-export function getSupabaseAdmin() {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-  return createClient(supabaseUrl, serviceRoleKey);
-}
+// =============================================================================
+// Supabase has been REMOVED from this project.
+// This file is kept as a placeholder so existing imports don't break at
+// compile time.  All storage operations now use local stubs (see upload.ts).
+// =============================================================================

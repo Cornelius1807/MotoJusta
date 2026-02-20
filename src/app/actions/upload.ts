@@ -1,8 +1,13 @@
 "use server";
 
-import { getSupabaseAdmin } from "@/lib/supabase";
 import { auth } from "@clerk/nextjs/server";
 import { logger } from "@/lib/logger";
+
+// ---------------------------------------------------------------------------
+// Supabase storage has been REMOVED.  This module now returns placeholder URLs
+// so that the rest of the application keeps working without a real object store.
+// When a real storage provider is configured, replace the stub below.
+// ---------------------------------------------------------------------------
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/quicktime"];
@@ -36,34 +41,22 @@ export async function uploadFile(
     throw new Error("El video excede el límite de 50MB");
   }
 
-  const supabase = getSupabaseAdmin();
+  // --- Stub: no real upload, return a placeholder URL ---
   const ext = file.name.split(".").pop() || "jpg";
   const timestamp = Date.now();
-  const path = folder
+  const fakePath = folder
     ? `${folder}/${userId}_${timestamp}.${ext}`
     : `${userId}_${timestamp}.${ext}`;
 
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
+  logger.warn(
+    "[upload] File storage is NOT configured — returning placeholder URL",
+    { bucket, path: fakePath, originalName: file.name, size: file.size }
+  );
 
-  const { data, error } = await supabase.storage
-    .from(bucket)
-    .upload(path, buffer, {
-      contentType: file.type,
-      upsert: false,
-    });
-
-  if (error) {
-    logger.error("File upload failed", { error: error.message, bucket, path });
-    throw new Error("Error al subir archivo: " + error.message);
-  }
-
-  const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(data.path);
-
-  logger.info("File uploaded", { bucket, path: data.path, size: file.size });
+  const placeholderUrl = `/uploads/${bucket}/${fakePath}`;
 
   return {
-    url: urlData.publicUrl,
+    url: placeholderUrl,
     mediaType: isImage ? "IMAGE" : "VIDEO",
     fileName: file.name,
   };
