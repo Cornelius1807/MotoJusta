@@ -42,6 +42,7 @@ export const motorcycleSchema = z.object({
   displacement: z.number().int().min(50).max(2000).optional(),
   use: z.enum(["TRABAJO", "DIARIO", "MIXTO"]).optional(),
   kmApprox: z.number().int().min(0).optional(),
+  placa: z.string().max(10).optional(),
   alias: z.string().max(50).optional(),
 });
 

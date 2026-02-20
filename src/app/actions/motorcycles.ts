@@ -26,6 +26,7 @@ export async function createMotorcycle(data: {
   displacement?: number;
   use?: string;
   kmApprox?: number;
+  placa?: string;
   alias?: string;
 }) {
   const { userId } = await auth();
@@ -36,13 +37,19 @@ export async function createMotorcycle(data: {
 
   const parsed = motorcycleSchema.parse(data);
 
-  const moto = await prisma.motorcycle.create({
-    data: {
-      ...parsed,
-      use: parsed.use as any,
-      userId: profile.id,
-    },
-  });
+  const createData: any = {
+    brand: parsed.brand,
+    model: parsed.model,
+    year: parsed.year,
+    displacement: parsed.displacement ?? null,
+    use: parsed.use,
+    kmApprox: parsed.kmApprox ?? null,
+    placa: parsed.placa || null,
+    alias: parsed.alias || null,
+    userId: profile.id,
+  };
+
+  const moto = await prisma.motorcycle.create({ data: createData });
 
   logger.info("Motorcycle created", { userId: profile.id, motoId: moto.id });
   revalidatePath("/app/motos");
@@ -56,6 +63,7 @@ export async function updateMotorcycle(id: string, data: {
   displacement?: number;
   use?: string;
   kmApprox?: number;
+  placa?: string;
   alias?: string;
 }) {
   const { userId } = await auth();
@@ -67,9 +75,10 @@ export async function updateMotorcycle(id: string, data: {
   const existing = await prisma.motorcycle.findFirst({ where: { id, userId: profile.id } });
   if (!existing) throw new Error("Moto no encontrada");
 
+  const updateData: any = { ...data, use: data.use, placa: data.placa !== undefined ? (data.placa || null) : undefined };
   const moto = await prisma.motorcycle.update({
     where: { id },
-    data: { ...data, use: data.use as any },
+    data: updateData,
   });
 
   revalidatePath("/app/motos");

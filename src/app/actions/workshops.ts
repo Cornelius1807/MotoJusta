@@ -126,3 +126,50 @@ export async function suspendWorkshop(workshopId: string, reason: string) {
   revalidatePath("/app/admin/talleres");
   return workshop;
 }
+
+// --- HU-25: Public workshop profile (no auth required for reading) ---
+export async function getPublicWorkshopProfile(workshopId: string) {
+  const workshop = await prisma.workshop.findUnique({
+    where: { id: workshopId },
+    include: {
+      categories: { include: { category: true } },
+      reviews: {
+        include: {
+          user: { select: { name: true, avatarUrl: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 20,
+      },
+    },
+  });
+
+  if (!workshop || workshop.status !== "VERIFICADO") {
+    return null;
+  }
+
+  return {
+    id: workshop.id,
+    name: workshop.name,
+    district: workshop.district,
+    address: workshop.address,
+    description: workshop.description,
+    photoUrl: workshop.photoUrl,
+    rating: workshop.rating,
+    totalServices: workshop.totalServices,
+    evidenceRate: workshop.evidenceRate,
+    guaranteePolicy: workshop.guaranteePolicy,
+    categories: workshop.categories.map((wc) => ({
+      id: wc.category.id,
+      name: wc.category.name,
+      slug: wc.category.slug,
+    })),
+    reviews: workshop.reviews.map((r) => ({
+      id: r.id,
+      rating: r.rating,
+      comment: r.comment,
+      userName: r.user.name || "Motociclista",
+      userAvatar: r.user.avatarUrl,
+      createdAt: r.createdAt,
+    })),
+  };
+}

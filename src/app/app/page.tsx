@@ -16,11 +16,15 @@ import {
   CheckCircle2,
   AlertCircle,
   Plus,
+  Bell,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getServiceRequests } from "@/app/actions/service-requests";
 import { getUserOrders } from "@/app/actions/work-orders";
 import { getNotifications } from "@/app/actions/notifications";
+import { getReminders, dismissReminder } from "@/app/actions/reminders";
+import type { Reminder } from "@/app/actions/reminders";
 
 const DEFAULT_STATS = [
   { label: "Solicitudes activas", value: "3", icon: FileText, color: "text-blue-500" },
@@ -53,6 +57,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState(DEFAULT_STATS);
   const [recentActivity, setRecentActivity] = useState(DEFAULT_ACTIVITY);
   const [isLoading, setIsLoading] = useState(true);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
 
   useEffect(() => {
     setIsLoading(true);
@@ -89,6 +94,11 @@ export default function DashboardPage() {
         // Keep default demo data
       })
       .finally(() => setIsLoading(false));
+
+    // FIX 10: Load maintenance reminders
+    getReminders()
+      .then((data) => setReminders(data))
+      .catch(() => {});
   }, []);
 
   return (
@@ -140,6 +150,60 @@ export default function DashboardPage() {
           </motion.div>
         ))}
       </div>
+
+      {/* FIX 10: Maintenance reminders */}
+      {reminders.length > 0 && (
+        <Card className="mb-8 border-yellow-200 bg-yellow-50/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Bell className="w-5 h-5 text-yellow-600" />
+              Recordatorios de mantenimiento
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {reminders.map((reminder) => (
+                <motion.div
+                  key={reminder.id}
+                  className="flex items-start gap-3 p-3 rounded-lg bg-white border border-yellow-200"
+                  initial={{ opacity: 0, y: 5 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
+                  <AlertCircle className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge variant="outline" className="text-[10px]">{reminder.type}</Badge>
+                      <span className="text-xs text-muted-foreground">{reminder.motoLabel}</span>
+                    </div>
+                    <p className="text-sm">{reminder.message}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{reminder.dueInfo}</p>
+                  </div>
+                  <div className="flex gap-1 shrink-0">
+                    <Link href="/app/solicitudes/nueva">
+                      <Button size="sm" variant="outline" className="text-xs h-7 px-2">
+                        Solicitar
+                      </Button>
+                    </Link>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0"
+                      onClick={async () => {
+                        try {
+                          await dismissReminder(reminder.id);
+                          setReminders(reminders.filter((r) => r.id !== reminder.id));
+                        } catch {}
+                      }}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Recent activity */}
       <Card>

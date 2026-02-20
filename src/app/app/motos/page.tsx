@@ -24,12 +24,13 @@ interface Motorcycle {
   displacement?: number;
   use?: string;
   kmApprox?: number;
+  placa?: string;
   alias?: string;
 }
 
 // Demo data
 const DEMO_MOTOS: Motorcycle[] = [
-  { id: "1", brand: "Honda", model: "CB 190R", year: 2023, displacement: 184, use: "DIARIO", kmApprox: 8500, alias: "Mi Honda" },
+  { id: "1", brand: "Honda", model: "CB 190R", year: 2023, displacement: 184, use: "DIARIO", kmApprox: 8500, placa: "ABC-123", alias: "Mi Honda" },
   { id: "2", brand: "Yamaha", model: "FZ 250", year: 2022, displacement: 249, use: "MIXTO", kmApprox: 15000 },
 ];
 
@@ -37,7 +38,7 @@ export default function MotosPage() {
   const [motos, setMotos] = useState<Motorcycle[]>(DEMO_MOTOS);
   const [isLoading, setIsLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
-  const [form, setForm] = useState({ brand: "", model: "", year: "", displacement: "", use: "", kmApprox: "", alias: "" });
+  const [form, setForm] = useState({ brand: "", model: "", year: "", displacement: "", use: "", kmApprox: "", placa: "", alias: "" });
 
   useEffect(() => {
     setIsLoading(true);
@@ -51,6 +52,7 @@ export default function MotosPage() {
           displacement: m.displacement ?? undefined,
           use: m.use ?? undefined,
           kmApprox: m.kmApprox ?? undefined,
+          placa: (m as any).placa ?? undefined,
           alias: m.alias ?? undefined,
         })));
       })
@@ -78,6 +80,7 @@ export default function MotosPage() {
         displacement: form.displacement ? parseInt(form.displacement) : undefined,
         use: form.use || undefined,
         kmApprox: form.kmApprox ? parseInt(form.kmApprox) : undefined,
+        placa: form.placa || undefined,
         alias: form.alias || undefined,
       });
       setMotos([...motos, {
@@ -88,9 +91,10 @@ export default function MotosPage() {
         displacement: created.displacement ?? undefined,
         use: created.use ?? undefined,
         kmApprox: created.kmApprox ?? undefined,
+        placa: (created as any).placa ?? undefined,
         alias: created.alias ?? undefined,
       }]);
-      setForm({ brand: "", model: "", year: "", displacement: "", use: "", kmApprox: "", alias: "" });
+      setForm({ brand: "", model: "", year: "", displacement: "", use: "", kmApprox: "", placa: "", alias: "" });
       setIsOpen(false);
       toast.success("Moto registrada correctamente");
     } catch {
@@ -102,10 +106,11 @@ export default function MotosPage() {
         displacement: form.displacement ? parseInt(form.displacement) : undefined,
         use: form.use || undefined,
         kmApprox: form.kmApprox ? parseInt(form.kmApprox) : undefined,
+        placa: form.placa || undefined,
         alias: form.alias || undefined,
       };
       setMotos([...motos, newMoto]);
-      setForm({ brand: "", model: "", year: "", displacement: "", use: "", kmApprox: "", alias: "" });
+      setForm({ brand: "", model: "", year: "", displacement: "", use: "", kmApprox: "", placa: "", alias: "" });
       setIsOpen(false);
       toast.error("No se pudo guardar en el servidor. Moto agregada localmente.");
     }
@@ -178,6 +183,10 @@ export default function MotosPage() {
                   <Label>Km aproximados</Label>
                   <Input type="number" value={form.kmApprox} onChange={(e) => setForm({ ...form, kmApprox: e.target.value })} placeholder="10000" />
                 </div>
+              </div>
+              <div>
+                <Label>Placa (opcional)</Label>
+                <Input value={form.placa} onChange={(e) => setForm({ ...form, placa: e.target.value.toUpperCase() })} placeholder="ABC-123" maxLength={10} />
               </div>
               <div>
                 <Label>Alias (opcional)</Label>
@@ -253,6 +262,9 @@ export default function MotosPage() {
                         <Badge variant="outline" className="text-xs">
                           {moto.use === "TRABAJO" ? "Trabajo" : moto.use === "DIARIO" ? "Diario" : "Mixto"}
                         </Badge>
+                      )}
+                      {moto.placa && (
+                        <Badge variant="outline" className="text-xs">{moto.placa}</Badge>
                       )}
                       {moto.kmApprox && (
                         <Badge variant="outline" className="text-xs">{moto.kmApprox.toLocaleString()} km</Badge>

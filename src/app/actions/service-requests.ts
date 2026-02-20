@@ -108,3 +108,35 @@ export async function getServiceRequestById(id: string) {
     },
   });
 }
+
+// --- HU-08: Cost estimation range based on historical quotes ---
+export async function estimateCost(categorySlug: string) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("No autorizado");
+
+  // Find category by slug
+  const category = await prisma.category.findUnique({ where: { slug: categorySlug } });
+  if (!category) {
+    return { min: 0, max: 0, avg: 0, count: 0 };
+  }
+
+  // Get historical quotes for service requests in this category
+  const quotes = await prisma.quote.findMany({
+    where: {
+      request: { categoryId: category.id },
+      status: { in: ["ENVIADA", "ACEPTADA"] },
+    },
+    select: { totalCost: true },
+  });
+
+  if (quotes.length === 0) {
+    return { min: 0, max: 0, avg: 0, count: 0 };
+  }
+
+  const costs = quotes.map((q) => q.totalCost);
+  const min = Math.min(...costs);
+  const max = Math.max(...costs);
+  const avg = Math.round(costs.reduce((a, b) => a + b, 0) / costs.length);
+
+  return { min, max, avg, count: quotes.length };
+}

@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import Link from "next/link";
 import {
   Search,
@@ -87,6 +88,7 @@ function formatDate(date: Date | string | null): string {
 
 export default function HistorialPage() {
   const [search, setSearch] = useState("");
+  const [motoFilter, setMotoFilter] = useState("all");
   const [history, setHistory] = useState<HistoryItem[]>(DEMO_HISTORY);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -116,10 +118,15 @@ export default function HistorialPage() {
   }, []);
 
   const filtered = history.filter((h) => {
+    // FIX 9: Motorcycle filter
+    if (motoFilter !== "all" && h.moto !== motoFilter) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return h.moto.toLowerCase().includes(q) || h.workshop.toLowerCase().includes(q) || h.category.toLowerCase().includes(q);
   });
+
+  // Get unique motorcycle names for the filter
+  const uniqueMotos = Array.from(new Set(history.map((h) => h.moto)));
 
   const totalSpent = history.reduce((sum, h) => sum + h.total, 0);
 
@@ -160,9 +167,31 @@ export default function HistorialPage() {
       </div>
 
       {/* Search */}
-      <div className="relative mb-6">
+      <div className="relative mb-4">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input placeholder="Buscar por moto, taller o categoría..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+      </div>
+
+      {/* FIX 9: Motorcycle filter + PDF export */}
+      <div className="flex gap-3 mb-6">
+        <Select value={motoFilter} onValueChange={setMotoFilter}>
+          <SelectTrigger className="w-50">
+            <SelectValue placeholder="Filtrar por moto" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas las motos</SelectItem>
+            {uniqueMotos.map((m) => (
+              <SelectItem key={m} value={m}>{m}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Button
+          variant="outline"
+          className="gap-1 ml-auto"
+          onClick={() => toast("Exportar PDF — próximamente", { description: "Esta función estará disponible pronto." })}
+        >
+          <Download className="w-4 h-4" /> Exportar PDF
+        </Button>
       </div>
 
       {/* History list */}

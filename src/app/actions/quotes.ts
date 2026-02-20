@@ -110,3 +110,70 @@ export async function acceptQuote(quoteId: string) {
   revalidatePath(`/app/solicitudes/${quote.requestId}`);
   return workOrder;
 }
+
+// --- HU-15: Reject quote ---
+export async function rejectQuote(quoteId: string, reason: string) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("No autorizado");
+
+  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
+  if (!profile) throw new Error("Perfil no encontrado");
+
+  const quote = await prisma.quote.findUnique({
+    where: { id: quoteId },
+    include: { request: true },
+  });
+  if (!quote) throw new Error("Cotización no encontrada");
+  if (quote.request.userId !== profile.id) throw new Error("No autorizado");
+
+  const updated = await prisma.quote.update({
+    where: { id: quoteId },
+    data: {
+      status: "RECHAZADA",
+      rejectionReason: reason,
+    },
+  });
+
+  logger.info("Quote rejected", { quoteId, reason });
+  revalidatePath(`/app/solicitudes/${quote.requestId}`);
+  return updated;
+}
+
+// --- HU-15: Counter offer ---
+export async function counterOffer(quoteId: string, message: string, suggestedAmount: number) {
+  const { userId } = await auth();
+  if (!userId) throw new Error("No autorizado");
+
+  const profile = await prisma.userProfile.findUnique({ where: { clerkUserId: userId } });
+  if (!profile) throw new Error("Perfil no encontrado");
+
+  const quote = await prisma.quote.findUnique({
+    where: { id: quoteId },
+    include: { request: true },
+  });
+  if (!quote) throw new Error("Cotización no encontrada");
+  if (quote.request.userId !== profile.id) throw new Error("No autorizado");
+
+  // Create a chat message with the counter offer details
+  const counterMsg = `💬 Contraoferta: Propongo S/ ${suggestedAmount.toFixed(2)} (original: S/ ${quote.totalCost.toFixed(2)}). ${message}`;
+
+  await prisma.chatMessage.create({
+    data: {
+      requestId: quote.requestId,
+      senderId: profile.id,
+      content: counterMsg,
+    },
+  });
+
+  // Update the quote rejection reason to track the counter offer
+  await prisma.quote.update({
+    where: { id: quoteId },
+    data: {
+      rejectionReason: `Contraoferta: S/ ${suggestedAmount} — ${message}`,
+    },
+  });
+
+  logger.info("Counter offer sent", { quoteId, suggestedAmount });
+  revalidatePath(`/app/solicitudes/${quote.requestId}`);
+  return { success: true };
+}
