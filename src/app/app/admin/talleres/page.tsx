@@ -37,14 +37,6 @@ interface Workshop {
   registeredAt: string;
 }
 
-const DEMO_WORKSHOPS: Workshop[] = [
-  { id: "T-001", name: "MotoFix Pro", district: "San Isidro", status: "VERIFIED", statusLabel: "Verificado", rating: 4.8, reviews: 67, categories: ["Motor", "Frenos"], registeredAt: "Dic 2024" },
-  { id: "T-002", name: "Taller MotoSpeed", district: "Miraflores", status: "VERIFIED", statusLabel: "Verificado", rating: 4.5, reviews: 32, categories: ["Frenos", "Suspensión"], registeredAt: "Nov 2024" },
-  { id: "T-003", name: "Tu Moto Lima", district: "Lima", status: "PENDING", statusLabel: "Pendiente", rating: 0, reviews: 0, categories: ["Mantenimiento general"], registeredAt: "Ene 2025" },
-  { id: "T-004", name: "MotoTech Express", district: "Surco", status: "PENDING", statusLabel: "Pendiente", rating: 0, reviews: 0, categories: ["Eléctrico", "Motor"], registeredAt: "Ene 2025" },
-  { id: "T-005", name: "Taller Los Amigos", district: "SJL", status: "SUSPENDED", statusLabel: "Suspendido", rating: 2.1, reviews: 8, categories: ["General"], registeredAt: "Oct 2024" },
-];
-
 const statusColors: Record<string, string> = {
   PENDING: "bg-yellow-100 text-yellow-800",
   VERIFIED: "bg-green-100 text-green-800",
@@ -76,7 +68,7 @@ const STATUS_LABEL_MAP: Record<string, string> = {
 export default function AdminTalleresPage() {
   const [search, setSearch] = useState("");
   const [tab, setTab] = useState("all");
-  const [workshops, setWorkshops] = useState<Workshop[]>(DEMO_WORKSHOPS);
+  const [workshops, setWorkshops] = useState<Workshop[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -99,10 +91,10 @@ export default function AdminTalleresPage() {
         categories: w.categories.map((c) => c.category.name),
         registeredAt: new Date(w.createdAt).toLocaleDateString("es-PE", { month: "short", year: "numeric" }),
       }));
-      setWorkshops(mapped.length > 0 ? mapped : DEMO_WORKSHOPS);
+      setWorkshops(mapped);
     } catch (error) {
       toast.error("Error al cargar talleres");
-      setWorkshops(DEMO_WORKSHOPS);
+      setWorkshops([]);
     } finally {
       setIsLoading(false);
     }
@@ -189,6 +181,16 @@ export default function AdminTalleresPage() {
             <Card key={n}><CardContent className="pt-4"><div className="flex items-start gap-3"><Skeleton className="w-10 h-10 rounded-lg" /><div className="flex-1 space-y-2"><Skeleton className="h-4 w-40" /><Skeleton className="h-3 w-60" /><Skeleton className="h-3 w-32" /></div></div></CardContent></Card>
           ))}
         </div>
+      ) : filtered.length === 0 ? (
+      <Card>
+        <CardContent className="pt-8 pb-8 text-center">
+          <Store className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+          <h3 className="font-medium text-sm mb-1">No hay talleres registrados</h3>
+          <p className="text-xs text-muted-foreground">
+            Los talleres registrados aparecerán aquí para que puedas verificarlos y administrarlos.
+          </p>
+        </CardContent>
+      </Card>
       ) : (
       <div className="space-y-3">
         {filtered.map((w, i) => (

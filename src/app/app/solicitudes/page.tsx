@@ -24,42 +24,6 @@ interface ServiceRequest {
   urgency: string;
 }
 
-const DEMO_REQUESTS: ServiceRequest[] = [
-  {
-    id: "SOL-001",
-    moto: "Honda CB 190R",
-    category: "Frenos",
-    description: "Las pastillas de freno delanteras hacen un ruido metálico al frenar",
-    status: "COTIZADA",
-    statusLabel: "Cotizada",
-    quotesCount: 3,
-    createdAt: "Hace 2 días",
-    urgency: "MEDIA",
-  },
-  {
-    id: "SOL-002",
-    moto: "Yamaha FZ 250",
-    category: "Motor",
-    description: "Pérdida de potencia al acelerar en segunda marcha, se siente tirones",
-    status: "PUBLICADA",
-    statusLabel: "Publicada",
-    quotesCount: 1,
-    createdAt: "Hace 5 horas",
-    urgency: "ALTA",
-  },
-  {
-    id: "SOL-003",
-    moto: "Honda CB 190R",
-    category: "Mantenimiento general",
-    description: "Cambio de aceite y filtro, revisión general de 10,000 km",
-    status: "COMPLETADA",
-    statusLabel: "Completada",
-    quotesCount: 4,
-    createdAt: "Hace 1 semana",
-    urgency: "BAJA",
-  },
-];
-
 const statusColors: Record<string, string> = {
   BORRADOR: "bg-gray-100 text-gray-800",
   PUBLICADA: "bg-blue-100 text-blue-800",
@@ -100,7 +64,7 @@ function formatRelativeTime(date: Date | string): string {
 
 export default function SolicitudesPage() {
   const [tab, setTab] = useState("all");
-  const [requests, setRequests] = useState<ServiceRequest[]>(DEMO_REQUESTS);
+  const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -119,8 +83,8 @@ export default function SolicitudesPage() {
           urgency: r.urgency || "MEDIA",
         })));
       })
-      .catch(() => {
-        setRequests(DEMO_REQUESTS);
+      .catch((err) => {
+        console.error("Failed to load requests", err);
       })
       .finally(() => setIsLoading(false));
   }, []);
@@ -161,7 +125,22 @@ export default function SolicitudesPage() {
               </div>
             </CardContent>
           </Card>
-        )) : filtered.map((req, i) => (
+        )) : filtered.length === 0 ? (
+          <Card>
+            <CardContent className="pt-8 pb-8 text-center">
+              <FileText className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+              <h3 className="font-medium text-sm mb-1">No tienes solicitudes</h3>
+              <p className="text-xs text-muted-foreground mb-4">
+                Crea tu primera solicitud de servicio para recibir cotizaciones de talleres.
+              </p>
+              <Link href="/app/solicitudes/nueva">
+                <Button className="gap-2" size="sm">
+                  <Plus className="w-4 h-4" /> Nueva solicitud
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : filtered.map((req, i) => (
           <motion.div
             key={req.id}
             initial={{ opacity: 0, y: 10 }}

@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { SafeUserButton } from "@/components/shared/safe-user-button";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useFeatureFlags } from "@/stores/feature-flags-store";
+import { switchRole, getCurrentRole } from "@/app/actions/roles";
+import { toast } from "sonner";
 import {
   Wrench,
   Home,
@@ -23,8 +25,9 @@ import {
   Menu,
   Bell,
   FlaskConical,
+  Loader2,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const motocyclistLinks = [
   { href: "/app", label: "Inicio", icon: Home },
@@ -72,10 +75,34 @@ function NavLinks({ links, pathname }: { links: typeof motocyclistLinks; pathnam
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { mvpMode } = useFeatureFlags();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [currentRole, setCurrentRole] = useState<string | null>(null);
+  const [switchingRole, setSwitchingRole] = useState<string | null>(null);
 
-  // Determine role-based navigation (simplified - in production would check DB)
+  // Load current role from DB on mount
+  useEffect(() => {
+    getCurrentRole().then((role) => {
+      if (role) setCurrentRole(role);
+    }).catch(() => {});
+  }, []);
+
+  const handleSwitchRole = async (role: "MOTOCICLISTA" | "TALLER" | "ADMIN", href: string) => {
+    setSwitchingRole(role);
+    try {
+      await switchRole(role);
+      setCurrentRole(role);
+      toast.success(`Cambiado a: ${role === "MOTOCICLISTA" ? "Motociclista" : role === "TALLER" ? "Taller" : "Admin"}`);
+      router.push(href);
+    } catch (err: any) {
+      toast.error("Error al cambiar rol", { description: err.message });
+    } finally {
+      setSwitchingRole(null);
+    }
+  };
+
+  // Determine role-based navigation
   const isAdmin = pathname.startsWith("/app/admin");
   const isWorkshop = pathname.startsWith("/app/taller");
   const links = isAdmin ? adminLinks : isWorkshop ? workshopLinks : motocyclistLinks;
@@ -111,17 +138,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* Role switcher for demo */}
         <div className="mt-8 pt-4 border-t">
-          <p className="text-xs text-muted-foreground mb-2 font-medium">Demo - Cambiar vista</p>
+          <p className="text-xs text-muted-foreground mb-2 font-medium">
+            Demo - Cambiar vista {currentRole && <Badge variant="outline" className="ml-1 text-[9px]">{currentRole}</Badge>}
+          </p>
           <div className="flex flex-col gap-1">
-            <Link href="/app" className="text-xs px-3 py-1.5 rounded-lg hover:bg-secondary text-muted-foreground">
-              🏍️ Motociclista
-            </Link>
-            <Link href="/app/taller/solicitudes" className="text-xs px-3 py-1.5 rounded-lg hover:bg-secondary text-muted-foreground">
-              🔧 Taller
-            </Link>
-            <Link href="/app/admin/talleres" className="text-xs px-3 py-1.5 rounded-lg hover:bg-secondary text-muted-foreground">
-              👨‍💼 Admin
-            </Link>
+            <button
+              onClick={() => handleSwitchRole("MOTOCICLISTA", "/app")}
+              disabled={!!switchingRole}
+              className="text-xs px-3 py-1.5 rounded-lg hover:bg-secondary text-muted-foreground text-left flex items-center gap-2 disabled:opacity-50"
+            >
+              {switchingRole === "MOTOCICLISTA" ? <Loader2 className="w-3 h-3 animate-spin" /> : "🏍️"} Motociclista
+            </button>
+            <button
+              onClick={() => handleSwitchRole("TALLER", "/app/taller/solicitudes")}
+              disabled={!!switchingRole}
+              className="text-xs px-3 py-1.5 rounded-lg hover:bg-secondary text-muted-foreground text-left flex items-center gap-2 disabled:opacity-50"
+            >
+              {switchingRole === "TALLER" ? <Loader2 className="w-3 h-3 animate-spin" /> : "🔧"} Taller
+            </button>
+            <button
+              onClick={() => handleSwitchRole("ADMIN", "/app/admin/talleres")}
+              disabled={!!switchingRole}
+              className="text-xs px-3 py-1.5 rounded-lg hover:bg-secondary text-muted-foreground text-left flex items-center gap-2 disabled:opacity-50"
+            >
+              {switchingRole === "ADMIN" ? <Loader2 className="w-3 h-3 animate-spin" /> : "👨‍💼"} Admin
+            </button>
           </div>
         </div>
       </div>

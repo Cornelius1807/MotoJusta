@@ -23,49 +23,6 @@ interface AvailableRequest {
   hasPhotos: boolean;
 }
 
-const DEMO_REQUESTS: AvailableRequest[] = [
-  {
-    id: "SOL-001",
-    moto: "Honda CB 190R (2023)",
-    category: "Frenos",
-    description: "Pastillas de freno delanteras hacen ruido metálico al frenar fuerte",
-    district: "Miraflores",
-    urgency: "MEDIA",
-    createdAt: "Hace 2 horas",
-    hasPhotos: true,
-  },
-  {
-    id: "SOL-004",
-    moto: "Bajaj Pulsar NS200 (2024)",
-    category: "Motor",
-    description: "Motor pierde potencia en subidas, además se siente un tiron al acelerar bruscamente",
-    district: "San Isidro",
-    urgency: "ALTA",
-    createdAt: "Hace 30 min",
-    hasPhotos: false,
-  },
-  {
-    id: "SOL-005",
-    moto: "Yamaha MT-03 (2022)",
-    category: "Mantenimiento general",
-    description: "Mantenimiento de 20,000 km: cambio de aceite, filtros, revisión general",
-    district: "Surco",
-    urgency: "BAJA",
-    createdAt: "Hace 5 horas",
-    hasPhotos: true,
-  },
-  {
-    id: "SOL-006",
-    moto: "Honda XR 150L (2021)",
-    category: "Suspensión",
-    description: "La horquilla delantera presenta fuga de aceite del lado izquierdo",
-    district: "Lima",
-    urgency: "MEDIA",
-    createdAt: "Hace 1 día",
-    hasPhotos: true,
-  },
-];
-
 const urgencyColors: Record<string, string> = {
   BAJA: "bg-green-100 text-green-800",
   MEDIA: "bg-yellow-100 text-yellow-800",
@@ -75,7 +32,7 @@ const urgencyColors: Record<string, string> = {
 export default function TallerSolicitudesPage() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
-  const [requests, setRequests] = useState<AvailableRequest[]>(DEMO_REQUESTS);
+  const [requests, setRequests] = useState<AvailableRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -96,7 +53,6 @@ export default function TallerSolicitudesPage() {
         }
       } catch (err) {
         console.error("Failed to load requests", err);
-        // keep DEMO_REQUESTS as fallback
       } finally {
         setIsLoading(false);
       }
@@ -153,6 +109,16 @@ export default function TallerSolicitudesPage() {
       <div className="space-y-3">
         {isLoading ? (
           [1, 2, 3].map((i) => <div key={i} className="h-28 rounded-lg bg-secondary animate-pulse" />)
+        ) : filtered.length === 0 ? (
+          <Card>
+            <CardContent className="pt-8 pb-8 text-center">
+              <Bike className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+              <h3 className="font-medium text-sm mb-1">No hay solicitudes disponibles</h3>
+              <p className="text-xs text-muted-foreground">
+                Cuando los motociclistas publiquen solicitudes de servicio, aparecerán aquí para que puedas cotizar.
+              </p>
+            </CardContent>
+          </Card>
         ) : filtered.map((req, i) => (
           <motion.div
             key={req.id}
