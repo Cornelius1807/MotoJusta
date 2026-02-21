@@ -33,6 +33,7 @@ export async function switchRole(role: SwitchableRole) {
           name: `Taller de ${profile.name || "Usuario"}`,
           district: profile.district || "Lima",
           address: "Dirección pendiente",
+          phone: "000-000-0000",
           status: "VERIFICADO",
           rating: 4.5,
         },

@@ -6,6 +6,8 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
+  "/registro-taller(.*)",
+  "/admin-login(.*)",
   "/api/webhooks(.*)",
 ]);
 
@@ -22,6 +24,8 @@ function fallbackMiddleware(request: NextRequest) {
     url.pathname === "/" ||
     url.pathname.startsWith("/sign-in") ||
     url.pathname.startsWith("/sign-up") ||
+    url.pathname.startsWith("/registro-taller") ||
+    url.pathname.startsWith("/admin-login") ||
     url.pathname.startsWith("/api/webhooks") ||
     url.pathname.startsWith("/_next") ||
     url.pathname.includes(".");

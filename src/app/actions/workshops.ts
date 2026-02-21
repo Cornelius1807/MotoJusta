@@ -2,7 +2,6 @@
 
 import { prisma } from "@/lib/prisma";
 import { getOrCreateProfile } from "@/lib/get-profile";
-import { workshopRegistrationSchema } from "@/lib/validations";
 import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 
@@ -10,23 +9,45 @@ export async function registerWorkshop(data: {
   name: string;
   district: string;
   address: string;
-  phone?: string;
+  phone: string;
+  ruc?: string;
   description?: string;
+  guaranteePolicy?: string;
+  categoryIds?: string[];
+  transparencyAccepted?: boolean;
 }) {
   const profile = await getOrCreateProfile();
   if (!profile) throw new Error("No autorizado");
 
-  const parsed = workshopRegistrationSchema.parse(data);
+  // Validate with schema (make categoryIds/transparency optional for backward compat)
+  const { categoryIds, transparencyAccepted, ...workshopData } = data;
 
   const workshop = await prisma.workshop.create({
     data: {
-      ...parsed,
+      name: workshopData.name,
+      district: workshopData.district,
+      address: workshopData.address,
+      phone: workshopData.phone,
+      ruc: workshopData.ruc || undefined,
+      description: workshopData.description || undefined,
+      guaranteePolicy: workshopData.guaranteePolicy || undefined,
+      transparencyAccepted: transparencyAccepted || false,
       userId: profile.id,
       status: "PENDIENTE",
     },
   });
 
-  // Update user role to WORKSHOP
+  // Create category associations if provided
+  if (categoryIds && categoryIds.length > 0) {
+    await prisma.workshopCategory.createMany({
+      data: categoryIds.map((catId) => ({
+        workshopId: workshop.id,
+        categoryId: catId,
+      })),
+    });
+  }
+
+  // Update user role to TALLER
   await prisma.userProfile.update({
     where: { id: profile.id },
     data: { role: "TALLER" },

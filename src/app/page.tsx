@@ -13,6 +13,9 @@ import {
   Star,
   CheckCircle2,
   Zap,
+  Bike,
+  Store,
+  ShieldCheck,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 
@@ -103,6 +106,12 @@ export default function Home() {
                 Ingresar
               </Button>
             </Link>
+            <Link href="/registro-taller">
+              <Button variant="outline" size="sm">
+                <Store className="w-4 h-4 mr-1" />
+                Soy Taller
+              </Button>
+            </Link>
             <Link href="/sign-up">
               <Button size="sm" className="bg-primary hover:bg-primary/90">
                 Registrarse
@@ -138,13 +147,14 @@ export default function Home() {
             <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
               <Link href="/sign-up">
                 <Button size="lg" className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-lg px-8">
-                  Comenzar gratis
-                  <ChevronRight className="ml-2 w-5 h-5" />
+                  <Bike className="mr-2 w-5 h-5" />
+                  Soy Motociclista
                 </Button>
               </Link>
-              <Link href="#como-funciona">
+              <Link href="/registro-taller">
                 <Button size="lg" variant="outline" className="w-full sm:w-auto text-lg px-8">
-                  ¿Cómo funciona?
+                  <Store className="mr-2 w-5 h-5" />
+                  Soy Taller
                 </Button>
               </Link>
             </div>
@@ -238,12 +248,20 @@ export default function Home() {
           <p className="text-muted-foreground text-lg mb-8">
             Regístrate gratis. Sin pagos obligatorios. Sin letra chica.
           </p>
-          <Link href="/sign-up">
-            <Button size="lg" className="bg-primary hover:bg-primary/90 text-lg px-10">
-              Crear mi cuenta
-              <ChevronRight className="ml-2 w-5 h-5" />
-            </Button>
-          </Link>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Link href="/sign-up">
+              <Button size="lg" className="bg-primary hover:bg-primary/90 text-lg px-10">
+                <Bike className="mr-2 w-5 h-5" />
+                Soy Motociclista
+              </Button>
+            </Link>
+            <Link href="/registro-taller">
+              <Button size="lg" variant="outline" className="text-lg px-10">
+                <Store className="mr-2 w-5 h-5" />
+                Registrar mi Taller
+              </Button>
+            </Link>
+          </div>
         </motion.div>
       </section>
 
