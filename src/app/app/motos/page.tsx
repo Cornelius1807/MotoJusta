@@ -28,11 +28,7 @@ interface Motorcycle {
   alias?: string;
 }
 
-// Demo data
-const DEMO_MOTOS: Motorcycle[] = [
-  { id: "1", brand: "Honda", model: "CB 190R", year: 2023, displacement: 184, use: "DIARIO", kmApprox: 8500, placa: "ABC-123", alias: "Mi Honda" },
-  { id: "2", brand: "Yamaha", model: "FZ 250", year: 2022, displacement: 249, use: "MIXTO", kmApprox: 15000 },
-];
+
 
 export default function MotosPage() {
   const [motos, setMotos] = useState<Motorcycle[]>([]);
