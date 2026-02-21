@@ -48,6 +48,7 @@ export default function RegistroTallerPage() {
   const [phone, setPhone] = useState("");
   const [ruc, setRuc] = useState("");
   const [description, setDescription] = useState("");
+  const [guaranteePolicy, setGuaranteePolicy] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [transparencyAccepted, setTransparencyAccepted] = useState(false);
 
@@ -139,6 +140,7 @@ export default function RegistroTallerPage() {
         phone,
         ruc: ruc || undefined,
         description: description || undefined,
+        guaranteePolicy: guaranteePolicy || undefined,
         categoryIds: selectedCategories,
         transparencyAccepted,
       });
@@ -399,6 +401,18 @@ export default function RegistroTallerPage() {
                   placeholder="Describe tu taller, servicios destacados, años de experiencia, marcas que trabajas..."
                   rows={3}
                 />
+              </div>
+              <div>
+                <Label>Política de garantía (opcional)</Label>
+                <Textarea
+                  value={guaranteePolicy}
+                  onChange={(e) => setGuaranteePolicy(e.target.value)}
+                  placeholder="Ej: Garantía de 30 días en mano de obra, 3 meses en repuestos originales..."
+                  rows={2}
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Describe la garantía que ofreces en tus servicios. Esto genera confianza en los motociclistas.
+                </p>
               </div>
             </CardContent>
           </Card>

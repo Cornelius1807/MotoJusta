@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,12 +19,14 @@ import {
   Plus,
   Bell,
   X,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { getServiceRequests } from "@/app/actions/service-requests";
 import { getUserOrders } from "@/app/actions/work-orders";
 import { getNotifications } from "@/app/actions/notifications";
 import { getReminders, dismissReminder } from "@/app/actions/reminders";
+import { getCurrentRole } from "@/app/actions/roles";
 import type { Reminder } from "@/app/actions/reminders";
 
 const DEFAULT_STATS = [
@@ -54,12 +57,30 @@ function formatRelativeTime(date: Date | string): string {
 }
 
 export default function DashboardPage() {
+  const router = useRouter();
   const [stats, setStats] = useState(DEFAULT_STATS);
   const [recentActivity, setRecentActivity] = useState(DEFAULT_ACTIVITY);
   const [isLoading, setIsLoading] = useState(true);
   const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [roleChecked, setRoleChecked] = useState(false);
+
+  // Redirect non-motociclista users to their proper dashboard
+  useEffect(() => {
+    getCurrentRole().then((role) => {
+      if (role === "TALLER") {
+        router.replace("/app/taller/solicitudes");
+        return;
+      }
+      if (role === "ADMIN") {
+        router.replace("/app/admin/talleres");
+        return;
+      }
+      setRoleChecked(true);
+    }).catch(() => setRoleChecked(true));
+  }, [router]);
 
   useEffect(() => {
+    if (!roleChecked) return;
     setIsLoading(true);
     Promise.allSettled([getServiceRequests(), getUserOrders(), getNotifications()])
       .then(([reqResult, ordResult, notifResult]) => {
@@ -95,11 +116,19 @@ export default function DashboardPage() {
       })
       .finally(() => setIsLoading(false));
 
-    // FIX 10: Load maintenance reminders
+    // Load maintenance reminders
     getReminders()
       .then((data) => setReminders(data))
       .catch(() => {});
-  }, []);
+  }, [roleChecked]);
+
+  if (!roleChecked) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="pb-20 lg:pb-0">

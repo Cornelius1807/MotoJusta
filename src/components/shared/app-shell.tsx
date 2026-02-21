@@ -34,8 +34,9 @@ const motocyclistLinks = [
 ];
 
 const workshopLinks = [
-  { href: "/app", label: "Inicio", icon: Home },
   { href: "/app/taller/solicitudes", label: "Solicitudes", icon: ClipboardList },
+  { href: "/app/taller/ordenes", label: "Órdenes", icon: FileText },
+  { href: "/app/taller/perfil", label: "Mi Taller", icon: Store },
 ];
 
 const adminLinks = [
