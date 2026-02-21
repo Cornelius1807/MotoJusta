@@ -24,37 +24,24 @@ import {
 } from "lucide-react";
 
 const platformStats = [
-  { label: "Motociclistas", value: "1,247", change: "+12%", icon: Users, color: "text-blue-500" },
-  { label: "Talleres activos", value: "89", change: "+5%", icon: Store, color: "text-green-500" },
-  { label: "Solicitudes (mes)", value: "342", change: "+18%", icon: FileText, color: "text-primary" },
-  { label: "Transacciones (S/)", value: "45,890", change: "+22%", icon: DollarSign, color: "text-yellow-500" },
+  { label: "Usuarios totales", value: "0", change: "", icon: Users, color: "text-blue-500" },
+  { label: "Talleres activos", value: "0", change: "", icon: Store, color: "text-green-500" },
+  { label: "Solicitudes", value: "0", change: "", icon: FileText, color: "text-primary" },
+  { label: "Órdenes de trabajo", value: "0", change: "", icon: DollarSign, color: "text-yellow-500" },
 ];
 
 const serviceMetrics = [
-  { label: "Tiempo promedio de cotización", value: "4.2 horas" },
-  { label: "Cotizaciones por solicitud", value: "2.8 promedio" },
-  { label: "Tasa de aceptación", value: "67%" },
-  { label: "Satisfacción promedio", value: "4.3 / 5.0" },
-  { label: "Tiempo promedio de servicio", value: "2.1 días" },
-  { label: "Incidentes este mes", value: "3" },
+  { label: "Cotizaciones totales", value: "0" },
+  { label: "Tasa de cotización", value: "0%" },
+  { label: "Satisfacción promedio", value: "0 / 5.0" },
+  { label: "Reseñas totales", value: "0" },
+  { label: "Órdenes de trabajo", value: "0" },
+  { label: "Incidentes", value: "0" },
 ];
 
-const topWorkshops = [
-  { name: "MotoFix Pro", district: "San Isidro", rating: 4.8, orders: 45 },
-  { name: "Taller MotoSpeed", district: "Miraflores", rating: 4.5, orders: 38 },
-  { name: "RapidMoto", district: "Surco", rating: 4.4, orders: 29 },
-  { name: "Honda Service Center", district: "San Borja", rating: 4.3, orders: 25 },
-  { name: "MotoExpert Lima", district: "Lima", rating: 4.2, orders: 22 },
-];
+const topWorkshops: any[] = [];
 
-const defaultCategoryDistribution = [
-  { name: "Mantenimiento general", pct: 35 },
-  { name: "Frenos", pct: 20 },
-  { name: "Motor", pct: 18 },
-  { name: "Neumáticos", pct: 12 },
-  { name: "Sistema eléctrico", pct: 8 },
-  { name: "Otros", pct: 7 },
-];
+const defaultCategoryDistribution: any[] = [];
 
 export default function AdminMetricasPage() {
   const [isLoading, setIsLoading] = useState(true);

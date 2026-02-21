@@ -73,9 +73,14 @@ function NavLinks({ links, pathname }: { links: typeof motocyclistLinks; pathnam
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { mvpMode } = useFeatureFlags();
+  const { mvpMode, loaded, loadFlags } = useFeatureFlags();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [currentRole, setCurrentRole] = useState<string | null>(null);
+
+  // Load feature flags from DB on mount
+  useEffect(() => {
+    loadFlags();
+  }, [loadFlags]);
 
   // Load current role from DB on mount
   useEffect(() => {

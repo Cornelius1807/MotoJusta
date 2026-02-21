@@ -1,22 +1,21 @@
 "use client";
 
+import { useEffect } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { FeatureBadge } from "@/components/shared/feature-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { FEATURE_FLAGS } from "@/lib/feature-flags";
 import { useFeatureFlags } from "@/stores/feature-flags-store";
 import { toast } from "sonner";
 import {
-  Settings,
   Zap,
   Sparkles,
   FlaskConical,
   Shield,
-  ToggleLeft,
 } from "lucide-react";
 
 const badgeConfig = {
@@ -26,18 +25,33 @@ const badgeConfig = {
 };
 
 export default function AdminConfigPage() {
-  const { flags, isEnabled, setFlag, mvpMode, setMvpMode } = useFeatureFlags();
+  const { flags, isEnabled, setFlag, mvpMode, setMvpMode, loaded, loadFlags } = useFeatureFlags();
+
+  useEffect(() => {
+    loadFlags();
+  }, [loadFlags]);
 
   const mvpFlags = FEATURE_FLAGS.filter((f) => f.badge === "MVP");
   const extraFlags = FEATURE_FLAGS.filter((f) => f.badge === "EXTRA");
   const labsFlags = FEATURE_FLAGS.filter((f) => f.badge === "LABS");
 
-  const handleMvpToggle = () => {
-    setMvpMode(!mvpMode);
+  const handleMvpToggle = async () => {
+    await setMvpMode(!mvpMode);
     toast(mvpMode ? "Modo completo activado" : "Modo MVP activado", {
-      description: mvpMode ? "Todas las features configuradas están visibles" : "Solo features MVP están activas",
+      description: mvpMode ? "Todas las features configuradas están visibles para todos los usuarios" : "Solo features MVP están activas para todos los usuarios",
     });
   };
+
+  if (!loaded) {
+    return (
+      <div className="pb-20 lg:pb-0 max-w-3xl">
+        <PageHeader title="Configuración" description="Gestiona los feature flags y configuración de la plataforma" badge="EXTRA" />
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-32 w-full rounded-lg" />)}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pb-20 lg:pb-0 max-w-3xl">
@@ -91,8 +105,8 @@ export default function AdminConfigPage() {
                       </div>
                       <Switch
                         checked={enabled}
-                        onCheckedChange={() => {
-                          setFlag(flag.key, !enabled);
+                        onCheckedChange={async () => {
+                          await setFlag(flag.key, !enabled);
                           toast(`${flag.name} ${enabled ? "desactivada" : "activada"}`);
                         }}
                         disabled={mvpMode && section.badge !== "MVP"}

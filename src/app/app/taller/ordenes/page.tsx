@@ -8,32 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { getWorkshopOrders } from "@/app/actions/work-orders";
 import Link from "next/link";
-import { Wrench, Clock, CheckCircle2, ChevronRight, Camera } from "lucide-react";
-
-const demoOrders = [
-  {
-    id: "ORD-001",
-    moto: "Honda CB 190R",
-    category: "Frenos",
-    client: "Juan P.",
-    status: "EN_PROCESO",
-    statusLabel: "En proceso",
-    total: 155,
-    startDate: "17 ene 2025",
-    progress: 60,
-  },
-  {
-    id: "ORD-002",
-    moto: "Yamaha FZ 250",
-    category: "Motor",
-    client: "María G.",
-    status: "COMPLETADA",
-    statusLabel: "Completada",
-    total: 320,
-    startDate: "10 ene 2025",
-    progress: 100,
-  },
-];
+import { Wrench, Clock, CheckCircle2, ChevronRight, Camera, FileText } from "lucide-react";
 
 const statusColors: Record<string, string> = {
   EN_PROCESO: "bg-yellow-100 text-yellow-800",
@@ -44,7 +19,7 @@ const statusColors: Record<string, string> = {
 };
 
 export default function TallerOrdenesPage() {
-  const [orders, setOrders] = useState(demoOrders);
+  const [orders, setOrders] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -84,6 +59,14 @@ export default function TallerOrdenesPage() {
       <div className="space-y-3">
         {isLoading ? (
           [1, 2].map((i) => <div key={i} className="h-32 rounded-lg bg-secondary animate-pulse" />)
+        ) : orders.length === 0 ? (
+          <Card>
+            <CardContent className="pt-8 pb-8 text-center">
+              <FileText className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
+              <p className="text-sm font-medium">No tienes órdenes de trabajo</p>
+              <p className="text-xs text-muted-foreground mt-1">Las órdenes aparecerán aquí cuando un motociclista acepte tu cotización.</p>
+            </CardContent>
+          </Card>
         ) : orders.map((order, i) => (
           <motion.div
             key={order.id}

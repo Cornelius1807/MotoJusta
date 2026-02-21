@@ -34,52 +34,7 @@ interface HistoryItem {
   hasReceipt: boolean;
 }
 
-const DEMO_HISTORY: HistoryItem[] = [
-  {
-    id: "1",
-    orderId: "ORD-002",
-    moto: "Honda CB 190R",
-    category: "Mantenimiento general",
-    workshop: "MotoFix Pro",
-    total: 250,
-    completedAt: "10 ene 2025",
-    rating: 4.5,
-    hasReceipt: true,
-  },
-  {
-    id: "2",
-    orderId: "ORD-005",
-    moto: "Honda CB 190R",
-    category: "Neumáticos",
-    workshop: "Taller MotoSpeed",
-    total: 180,
-    completedAt: "28 dic 2024",
-    rating: 5,
-    hasReceipt: true,
-  },
-  {
-    id: "3",
-    orderId: "ORD-008",
-    moto: "Yamaha FZ 250",
-    category: "Motor",
-    workshop: "RapidMoto",
-    total: 490,
-    completedAt: "15 dic 2024",
-    rating: 3.5,
-    hasReceipt: true,
-  },
-  {
-    id: "4",
-    orderId: "ORD-012",
-    moto: "Honda CB 190R",
-    category: "Sistema eléctrico",
-    workshop: "MotoExpert Lima",
-    total: 120,
-    completedAt: "01 dic 2024",
-    rating: null,
-    hasReceipt: false,
-  },
-];
+
 
 function formatDate(date: Date | string | null): string {
   if (!date) return "";
@@ -89,7 +44,7 @@ function formatDate(date: Date | string | null): string {
 export default function HistorialPage() {
   const [search, setSearch] = useState("");
   const [motoFilter, setMotoFilter] = useState("all");
-  const [history, setHistory] = useState<HistoryItem[]>(DEMO_HISTORY);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -111,8 +66,8 @@ export default function HistorialPage() {
           })));
         }
       })
-      .catch(() => {
-        setHistory(DEMO_HISTORY);
+      .catch((err) => {
+        console.error("Failed to load history", err);
       })
       .finally(() => setIsLoading(false));
   }, []);
