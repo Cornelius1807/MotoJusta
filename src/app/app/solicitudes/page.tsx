@@ -27,11 +27,9 @@ interface ServiceRequest {
 const statusColors: Record<string, string> = {
   BORRADOR: "bg-gray-100 text-gray-800",
   PUBLICADA: "bg-blue-100 text-blue-800",
-  COTIZADA: "bg-primary/15 text-primary",
-  ACEPTADA: "bg-green-100 text-green-800",
-  EN_PROCESO: "bg-yellow-100 text-yellow-800",
+  EN_COTIZACION: "bg-primary/15 text-primary",
+  SELECCIONADA: "bg-green-100 text-green-800",
   EN_SERVICIO: "bg-yellow-100 text-yellow-800",
-  COMPLETADA: "bg-green-100 text-green-800",
   CERRADA: "bg-green-100 text-green-800",
   CANCELADA: "bg-red-100 text-red-800",
 };
@@ -39,12 +37,9 @@ const statusColors: Record<string, string> = {
 const statusLabels: Record<string, string> = {
   BORRADOR: "Borrador",
   PUBLICADA: "Publicada",
-  COTIZADA: "Cotizada",
-  ACEPTADA: "Aceptada",
-  EN_PROCESO: "En proceso",
-  EN_SERVICIO: "En servicio",
+  EN_COTIZACION: "En cotización",
   SELECCIONADA: "Seleccionada",
-  COMPLETADA: "Completada",
+  EN_SERVICIO: "En servicio",
   CERRADA: "Cerrada",
   CANCELADA: "Cancelada",
 };
@@ -105,9 +100,10 @@ export default function SolicitudesPage() {
         <TabsList className="w-full justify-start overflow-x-auto">
           <TabsTrigger value="all">Todas</TabsTrigger>
           <TabsTrigger value="PUBLICADA">Publicadas</TabsTrigger>
-          <TabsTrigger value="COTIZADA">Cotizadas</TabsTrigger>
-          <TabsTrigger value="EN_PROCESO">En proceso</TabsTrigger>
-          <TabsTrigger value="COMPLETADA">Completadas</TabsTrigger>
+          <TabsTrigger value="EN_COTIZACION">Con cotizaciones</TabsTrigger>
+          <TabsTrigger value="SELECCIONADA">Seleccionadas</TabsTrigger>
+          <TabsTrigger value="EN_SERVICIO">En servicio</TabsTrigger>
+          <TabsTrigger value="CERRADA">Cerradas</TabsTrigger>
         </TabsList>
       </Tabs>
 

@@ -146,6 +146,12 @@ export default function DashboardPage() {
             Nueva solicitud
           </Button>
         </Link>
+        <Link href="/app/solicitudes">
+          <Button variant="outline" className="gap-2">
+            <FileText className="w-4 h-4" />
+            Mis solicitudes
+          </Button>
+        </Link>
         <Link href="/app/motos">
           <Button variant="outline" className="gap-2">
             <Bike className="w-4 h-4" />
