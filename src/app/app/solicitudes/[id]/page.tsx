@@ -397,7 +397,7 @@ export default function SolicitudDetailPage() {
                       <td className="py-2 text-muted-foreground">Tipo repuestos</td>
                       {quotes.map((q) => (
                         <td key={q.id} className="text-center py-2">
-                          {q.parts.some((p: any) => p.type === "OEM") ? "OEM" : "Aftermarket"}
+                          {q.parts.some((p: any) => p.type === "ORIGINAL") ? "Original" : "Alternativo"}
                         </td>
                       ))}
                     </tr>

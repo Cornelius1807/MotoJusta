@@ -30,7 +30,7 @@ import {
 interface PartItem {
   id: string;
   name: string;
-  type: "OEM" | "AFTERMARKET" | "USED";
+  type: "ORIGINAL" | "ALTERNATIVO";
   price: number;
   quantity: number;
 }
@@ -46,7 +46,7 @@ export default function CotizarPage() {
   const [estimatedDays, setEstimatedDays] = useState("");
   const [message, setMessage] = useState("");
   const [parts, setParts] = useState<PartItem[]>([
-    { id: "1", name: "", type: "OEM", price: 0, quantity: 1 },
+    { id: "1", name: "", type: "ORIGINAL", price: 0, quantity: 1 },
   ]);
 
   useEffect(() => {
@@ -64,7 +64,7 @@ export default function CotizarPage() {
   }, [id]);
 
   const addPart = () => {
-    setParts([...parts, { id: Date.now().toString(), name: "", type: "OEM", price: 0, quantity: 1 }]);
+    setParts([...parts, { id: Date.now().toString(), name: "", type: "ORIGINAL", price: 0, quantity: 1 }]);
   };
 
   const removePart = (partId: string) => {
@@ -206,9 +206,8 @@ export default function CotizarPage() {
                   <Select value={part.type} onValueChange={(v) => updatePart(part.id, "type", v)}>
                     <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="OEM">OEM</SelectItem>
-                      <SelectItem value="AFTERMARKET">Alternativo</SelectItem>
-                      <SelectItem value="USED">Usado</SelectItem>
+                      <SelectItem value="ORIGINAL">Original (OEM)</SelectItem>
+                      <SelectItem value="ALTERNATIVO">Alternativo</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
