@@ -42,6 +42,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# prisma generated
-/src/generated/prisma
+# prisma generated — committed to ensure Vercel builds have the correct client
+# /src/generated/prisma
 .env*.local
