@@ -312,7 +312,7 @@ export async function generateGlossary(quoteId: string) {
 
 // --- HU-38: Vision diagnosis (LABS) ---
 export async function generateVisionDiagnosis(data: {
-  requestId: string;
+  requestId?: string;
   imageUrls: string[];
   symptoms: string;
   motorcycleBrand: string;
@@ -321,8 +321,8 @@ export async function generateVisionDiagnosis(data: {
   const { userId } = await auth();
   if (!userId) throw new Error("No autorizado");
 
-  if (data.imageUrls.length < 2) {
-    throw new Error("Se requieren al menos 2 fotos del área afectada");
+  if (!data.imageUrls || data.imageUrls.length === 0) {
+    throw new Error("Se requiere al menos 1 foto del área afectada");
   }
 
   // Labs/mock implementation — no real vision API
@@ -348,21 +348,27 @@ export async function generateVisionDiagnosis(data: {
     imagesAnalyzed: data.imageUrls.length,
   };
 
-  // Store suggestion
-  await prisma.aiSuggestion.create({
-    data: {
-      requestId: data.requestId,
-      type: "VISION_DIAGNOSIS",
-      input: JSON.stringify({ symptoms: data.symptoms, imageCount: data.imageUrls.length }),
-      output: JSON.stringify(result),
-      confidence: result.confidence,
-      modelVersion: result.modelVersion,
-      isConclusive: result.isConclusive,
-      disclaimer: result.disclaimer,
-    },
-  });
+  // Only store in DB if we have a real requestId (not during pre-submission preview)
+  if (data.requestId) {
+    try {
+      await prisma.aiSuggestion.create({
+        data: {
+          requestId: data.requestId,
+          type: "VISION_DIAGNOSIS",
+          input: JSON.stringify({ symptoms: data.symptoms, imageCount: data.imageUrls.length }),
+          output: JSON.stringify(result),
+          confidence: result.confidence,
+          modelVersion: result.modelVersion,
+          isConclusive: result.isConclusive,
+          disclaimer: result.disclaimer,
+        },
+      });
+    } catch (err: any) {
+      logger.warn("Could not store vision diagnosis in DB", { error: err.message });
+    }
+  }
 
-  logger.info("AI vision diagnosis generated", { requestId: data.requestId, confidence, isConclusive: result.isConclusive });
+  logger.info("AI vision diagnosis generated", { requestId: data.requestId || "preview", confidence, isConclusive: result.isConclusive });
   return result;
 }
 
