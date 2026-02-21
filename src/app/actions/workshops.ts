@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import { logger } from "@/lib/logger";
 
 export async function registerWorkshop(data: {
+  contactName?: string;
+  contactEmail?: string;
   name: string;
   district: string;
   address: string;
@@ -19,8 +21,29 @@ export async function registerWorkshop(data: {
   const profile = await getOrCreateProfile();
   if (!profile) throw new Error("No autorizado");
 
-  // Validate with schema (make categoryIds/transparency optional for backward compat)
-  const { categoryIds, transparencyAccepted, ...workshopData } = data;
+  // Guard: prevent existing motociclistas from converting their account
+  if (profile.role === "ADMIN") {
+    throw new Error("Una cuenta de admin no puede registrar un taller");
+  }
+
+  const [motoCount, requestCount] = await Promise.all([
+    prisma.motorcycle.count({ where: { userId: profile.id } }),
+    prisma.serviceRequest.count({ where: { userId: profile.id } }),
+  ]);
+
+  if (motoCount > 0 || requestCount > 0) {
+    throw new Error("Esta cuenta ya tiene actividad como motociclista. Crea una cuenta nueva para tu taller.");
+  }
+
+  // Check if user already has a workshop
+  const existingWorkshop = await prisma.workshop.findFirst({
+    where: { userId: profile.id },
+  });
+  if (existingWorkshop) {
+    throw new Error("Ya tienes un taller registrado");
+  }
+
+  const { categoryIds, transparencyAccepted, contactName, contactEmail, ...workshopData } = data;
 
   const workshop = await prisma.workshop.create({
     data: {
@@ -47,10 +70,13 @@ export async function registerWorkshop(data: {
     });
   }
 
-  // Update user role to TALLER
+  // Update user role to TALLER and save contact info
   await prisma.userProfile.update({
     where: { id: profile.id },
-    data: { role: "TALLER" },
+    data: {
+      role: "TALLER",
+      ...(contactName ? { name: contactName } : {}),
+    },
   });
 
   logger.info("Workshop registered", { userId: profile.id, workshopId: workshop.id });

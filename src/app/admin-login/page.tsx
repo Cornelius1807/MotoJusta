@@ -4,28 +4,33 @@ import { useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { SignIn } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { switchRole } from "@/app/actions/roles";
+import { getCurrentRole } from "@/app/actions/roles";
 import { Wrench, ShieldCheck, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 export default function AdminLoginPage() {
   const { isSignedIn, isLoaded } = useUser();
   const router = useRouter();
-  const [activating, setActivating] = useState(false);
+  const [checking, setChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Once signed in, auto-switch role to ADMIN
+  // Once signed in, verify the user has ADMIN role in DB
   useEffect(() => {
     if (!isSignedIn) return;
 
-    setActivating(true);
-    switchRole("ADMIN")
-      .then(() => {
-        router.replace("/app/admin/talleres");
+    setChecking(true);
+    getCurrentRole()
+      .then((role) => {
+        if (role === "ADMIN") {
+          router.replace("/app/admin/talleres");
+        } else {
+          setError("Tu cuenta no tiene permisos de administrador. Contacta al equipo de MotoJusta.");
+          setChecking(false);
+        }
       })
       .catch((err) => {
-        setError(err.message || "Error al activar rol de admin");
-        setActivating(false);
+        setError(err.message || "Error al verificar permisos");
+        setChecking(false);
       });
   }, [isSignedIn, router]);
 
@@ -37,22 +42,22 @@ export default function AdminLoginPage() {
     );
   }
 
-  // Activating admin role
-  if (isSignedIn && activating) {
+  // Checking admin role
+  if (isSignedIn && checking) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="text-muted-foreground">Activando panel de administrador...</p>
+        <p className="text-muted-foreground">Verificando permisos de administrador...</p>
       </div>
     );
   }
 
-  // Error state
+  // Error / not authorized
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4 px-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4 px-4 text-center">
         <ShieldCheck className="w-12 h-12 text-destructive" />
-        <p className="text-destructive font-medium">{error}</p>
+        <p className="text-destructive font-medium max-w-sm">{error}</p>
         <Link href="/" className="text-primary hover:underline text-sm">← Volver al inicio</Link>
       </div>
     );

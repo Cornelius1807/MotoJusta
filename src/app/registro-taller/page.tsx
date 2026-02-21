@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth, useClerk } from "@clerk/nextjs";
 import { SignUp } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { registerWorkshop } from "@/app/actions/workshops";
 import { getCategories } from "@/app/actions/categories";
 import { getWorkshopProfile } from "@/app/actions/workshops";
+import { checkUserHasExistingData } from "@/app/actions/roles";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Wrench, Store, MapPin, Phone, FileText, Shield, Loader2 } from "lucide-react";
+import { Wrench, Store, MapPin, Phone, FileText, Shield, Loader2, AlertTriangle, User, Mail, LogOut } from "lucide-react";
 import Link from "next/link";
 
 const DISTRICTS = [
@@ -27,15 +28,20 @@ const DISTRICTS = [
   "Independencia", "Callao", "Ventanilla", "Otro",
 ];
 
+type PageState = "loading" | "not-signed-in" | "existing-user-blocked" | "show-form";
+
 export default function RegistroTallerPage() {
   const { isSignedIn, isLoaded } = useAuth();
+  const { signOut } = useClerk();
   const router = useRouter();
 
+  const [pageState, setPageState] = useState<PageState>("loading");
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [checkingWorkshop, setCheckingWorkshop] = useState(true);
 
   // Form fields
+  const [contactName, setContactName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [district, setDistrict] = useState("");
@@ -45,31 +51,54 @@ export default function RegistroTallerPage() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [transparencyAccepted, setTransparencyAccepted] = useState(false);
 
-  // Check if user already has a workshop
+  // Determine page state based on auth + user data
   useEffect(() => {
+    if (!isLoaded) return;
+
     if (!isSignedIn) {
-      setCheckingWorkshop(false);
+      setPageState("not-signed-in");
       return;
     }
-    getWorkshopProfile()
-      .then((workshop) => {
-        if (workshop) {
-          router.replace("/app/taller/solicitudes");
-        } else {
-          setCheckingWorkshop(false);
-        }
-      })
-      .catch(() => setCheckingWorkshop(false));
-  }, [isSignedIn, router]);
 
-  // Load categories
+    // User is signed in — check their status
+    Promise.all([
+      getWorkshopProfile(),
+      checkUserHasExistingData(),
+    ])
+      .then(([workshop, userData]) => {
+        if (workshop) {
+          // Already has workshop → redirect to taller dashboard
+          router.replace("/app/taller/solicitudes");
+          return;
+        }
+        if (userData.role === "ADMIN") {
+          setPageState("existing-user-blocked");
+          return;
+        }
+        if (userData.role === "TALLER") {
+          // Already taller but no workshop record → show form
+          setPageState("show-form");
+          return;
+        }
+        // MOTOCICLISTA role — check if they have existing data
+        if (userData.hasData) {
+          setPageState("existing-user-blocked");
+          return;
+        }
+        // Fresh account with no data → show form
+        setPageState("show-form");
+      })
+      .catch(() => setPageState("show-form"));
+  }, [isLoaded, isSignedIn, router]);
+
+  // Load categories when showing form
   useEffect(() => {
-    if (isSignedIn) {
+    if (pageState === "show-form" && isSignedIn) {
       getCategories()
         .then((cats) => setCategories(cats))
         .catch(() => {});
     }
-  }, [isSignedIn]);
+  }, [pageState, isSignedIn]);
 
   const toggleCategory = (catId: string) => {
     setSelectedCategories((prev) =>
@@ -78,6 +107,10 @@ export default function RegistroTallerPage() {
   };
 
   const handleSubmit = async () => {
+    if (!contactName) {
+      toast.error("Ingresa el nombre del representante");
+      return;
+    }
     if (!name || !address || !district || !phone) {
       toast.error("Completa todos los campos obligatorios");
       return;
@@ -98,6 +131,8 @@ export default function RegistroTallerPage() {
     setIsSubmitting(true);
     try {
       await registerWorkshop({
+        contactName,
+        contactEmail: contactEmail || undefined,
         name,
         address,
         district,
@@ -107,8 +142,8 @@ export default function RegistroTallerPage() {
         categoryIds: selectedCategories,
         transparencyAccepted,
       });
-      toast.success("¡Taller registrado exitosamente!", {
-        description: "Tu taller está pendiente de verificación por el equipo de MotoJusta.",
+      toast.success("¡Solicitud enviada!", {
+        description: "Tu taller será revisado por el equipo de MotoJusta antes de activarse.",
       });
       router.push("/app/taller/solicitudes");
     } catch (err: any) {
@@ -118,7 +153,13 @@ export default function RegistroTallerPage() {
     }
   };
 
-  if (!isLoaded) {
+  const handleSignOutAndRegister = async () => {
+    await signOut();
+  };
+
+  // --- RENDER STATES ---
+
+  if (pageState === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -126,8 +167,8 @@ export default function RegistroTallerPage() {
     );
   }
 
-  // Step 1: Not signed in → show sign-up
-  if (!isSignedIn) {
+  // Not signed in → show Clerk SignUp
+  if (pageState === "not-signed-in") {
     return (
       <div className="min-h-screen bg-background">
         <nav className="border-b bg-background/80 backdrop-blur-md">
@@ -137,9 +178,6 @@ export default function RegistroTallerPage() {
                 <Wrench className="w-5 h-5 text-primary-foreground" />
               </div>
               <span className="font-bold text-xl">Moto<span className="text-primary">Justa</span></span>
-            </Link>
-            <Link href="/sign-in">
-              <Button variant="ghost" size="sm">¿Ya tienes cuenta? Ingresar</Button>
             </Link>
           </div>
         </nav>
@@ -151,7 +189,7 @@ export default function RegistroTallerPage() {
             </div>
             <h1 className="text-3xl font-bold mb-2">Registra tu taller</h1>
             <p className="text-muted-foreground">
-              Primero crea tu cuenta, luego completa los datos de tu taller.
+              Crea una cuenta nueva para tu taller. Luego completa los datos de tu negocio.
             </p>
           </div>
 
@@ -173,16 +211,57 @@ export default function RegistroTallerPage() {
     );
   }
 
-  // Checking if user already has workshop
-  if (checkingWorkshop) {
+  // Already has a motociclista account with data → block
+  if (pageState === "existing-user-blocked") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="min-h-screen bg-background">
+        <nav className="border-b bg-background/80 backdrop-blur-md">
+          <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                <Wrench className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <span className="font-bold text-xl">Moto<span className="text-primary">Justa</span></span>
+            </Link>
+          </div>
+        </nav>
+
+        <div className="max-w-lg mx-auto px-4 py-12">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-2xl bg-yellow-100 flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-8 h-8 text-yellow-600" />
+            </div>
+            <h1 className="text-2xl font-bold mb-3">Ya tienes una cuenta activa</h1>
+            <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+              Esta cuenta ya está en uso como motociclista. Para registrar un taller necesitas
+              crear una <strong>cuenta nueva</strong> con un correo diferente.
+            </p>
+
+            <div className="bg-secondary/50 rounded-xl p-4 mb-6 text-sm text-left space-y-2">
+              <p className="font-medium">¿Por qué necesito otra cuenta?</p>
+              <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+                <li>Las cuentas de motociclista y taller son independientes por seguridad</li>
+                <li>Permite que el admin verifique cada taller de forma separada</li>
+                <li>Evita conflictos de interés entre quien pide y quien cotiza servicios</li>
+              </ul>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <Button onClick={handleSignOutAndRegister} className="gap-2">
+                <LogOut className="w-4 h-4" />
+                Cerrar sesión y crear cuenta de taller
+              </Button>
+              <Link href="/app">
+                <Button variant="ghost" className="w-full">Volver a mi cuenta de motociclista</Button>
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
-  // Step 2: Signed in → show workshop registration form
+  // Fresh account → show workshop registration form
   return (
     <div className="min-h-screen bg-background">
       <nav className="border-b bg-background/80 backdrop-blur-md">
@@ -203,12 +282,51 @@ export default function RegistroTallerPage() {
           </div>
           <h1 className="text-3xl font-bold mb-2">Datos de tu taller</h1>
           <p className="text-muted-foreground">
-            Completa la información de tu taller para empezar a recibir solicitudes de servicio.
+            Completa la información para que nuestro equipo verifique tu taller.
           </p>
         </div>
 
         <div className="space-y-6">
-          {/* Basic info */}
+          {/* Contact info */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <User className="w-4 h-4 text-primary" /> Datos del representante
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label>Nombre completo del representante *</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                    placeholder="Juan Pérez"
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label>Email de contacto del taller (opcional)</Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    value={contactEmail}
+                    onChange={(e) => setContactEmail(e.target.value)}
+                    placeholder="taller@ejemplo.com"
+                    type="email"
+                    className="pl-9"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Email adicional para comunicaciones del taller.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Business info */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
@@ -237,7 +355,7 @@ export default function RegistroTallerPage() {
                   </Select>
                 </div>
                 <div>
-                  <Label>Teléfono *</Label>
+                  <Label>Teléfono del taller *</Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
@@ -250,32 +368,35 @@ export default function RegistroTallerPage() {
                 </div>
               </div>
               <div>
-                <Label>Dirección *</Label>
+                <Label>Dirección completa *</Label>
                 <div className="relative">
                   <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Av. Ejemplo 123"
+                    placeholder="Av. Ejemplo 123, Referencia: frente al parque"
                     className="pl-9"
                   />
                 </div>
               </div>
               <div>
-                <Label>RUC (opcional)</Label>
+                <Label>RUC (opcional pero recomendado)</Label>
                 <Input
                   value={ruc}
                   onChange={(e) => setRuc(e.target.value)}
                   placeholder="20123456789"
                   maxLength={11}
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Talleres con RUC verificado tienen prioridad en la plataforma.
+                </p>
               </div>
               <div>
-                <Label>Descripción (opcional)</Label>
+                <Label>Descripción del taller (opcional)</Label>
                 <Textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe tu taller, servicios destacados, años de experiencia..."
+                  placeholder="Describe tu taller, servicios destacados, años de experiencia, marcas que trabajas..."
                   rows={3}
                 />
               </div>
@@ -325,6 +446,7 @@ export default function RegistroTallerPage() {
                   <li>No realizar trabajos adicionales sin autorización del motociclista</li>
                   <li>Subir evidencia fotográfica del proceso de servicio</li>
                   <li>Respetar los precios cotizados</li>
+                  <li>Permitir la verificación de datos por parte del equipo de MotoJusta</li>
                 </ul>
               </div>
               <div className="flex items-center gap-2">
@@ -340,13 +462,26 @@ export default function RegistroTallerPage() {
             </CardContent>
           </Card>
 
+          {/* Info banner about verification */}
+          <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-xl p-4 text-sm">
+            <p className="font-medium text-blue-900 dark:text-blue-100 mb-1">
+              ¿Qué pasa después del registro?
+            </p>
+            <ol className="list-decimal pl-5 text-blue-800 dark:text-blue-200 space-y-1">
+              <li>Nuestro equipo revisará los datos de tu taller</li>
+              <li>Verificaremos la información proporcionada (RUC, ubicación, etc.)</li>
+              <li>Si todo está correcto, tu taller será activado y podrás recibir solicitudes</li>
+              <li>Te notificaremos cuando tu taller sea verificado</li>
+            </ol>
+          </div>
+
           <Button onClick={handleSubmit} disabled={isSubmitting} className="w-full gap-2" size="lg">
             {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Store className="w-4 h-4" />}
-            {isSubmitting ? "Registrando..." : "Registrar mi taller"}
+            {isSubmitting ? "Enviando solicitud..." : "Enviar solicitud de registro"}
           </Button>
 
           <p className="text-xs text-muted-foreground text-center">
-            Tu taller será verificado por el equipo de MotoJusta antes de recibir solicitudes.
+            Tu taller será verificado por el equipo de MotoJusta antes de poder recibir solicitudes.
           </p>
         </div>
       </div>

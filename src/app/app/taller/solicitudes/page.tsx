@@ -9,8 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getAvailableRequests } from "@/app/actions/service-requests";
+import { getWorkshopProfile } from "@/app/actions/workshops";
 import Link from "next/link";
-import { Search, MapPin, Clock, Bike, ChevronRight, Filter } from "lucide-react";
+import { Search, MapPin, Clock, Bike, ChevronRight, Filter, ShieldCheck, AlertTriangle } from "lucide-react";
 
 interface AvailableRequest {
   id: string;
@@ -34,11 +35,21 @@ export default function TallerSolicitudesPage() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [requests, setRequests] = useState<AvailableRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [workshopStatus, setWorkshopStatus] = useState<string | null>(null);
 
   useEffect(() => {
     async function load() {
       try {
-        const data = await getAvailableRequests();
+        // Load workshop status and requests in parallel
+        const [workshopData, data] = await Promise.all([
+          getWorkshopProfile().catch(() => null),
+          getAvailableRequests().catch(() => []),
+        ]);
+
+        if (workshopData) {
+          setWorkshopStatus(workshopData.status);
+        }
+
         if (data && data.length > 0) {
           setRequests(data.map((r: any) => ({
             id: r.id,
@@ -73,6 +84,56 @@ export default function TallerSolicitudesPage() {
         description="Encuentra solicitudes de servicio para cotizar"
         badge="MVP"
       />
+
+      {/* Workshop verification status banner */}
+      {workshopStatus === "PENDIENTE" && (
+        <div className="mb-6 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-yellow-900 dark:text-yellow-100 text-sm">
+                Tu taller está pendiente de verificación
+              </p>
+              <p className="text-xs text-yellow-800 dark:text-yellow-200 mt-1">
+                Nuestro equipo está revisando los datos de tu taller. Una vez verificado, podrás ver y cotizar solicitudes de servicio.
+                Te notificaremos cuando tu taller sea aprobado.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {workshopStatus === "SUSPENDIDO" && (
+        <div className="mb-6 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-red-900 dark:text-red-100 text-sm">
+                Tu taller ha sido suspendido
+              </p>
+              <p className="text-xs text-red-800 dark:text-red-200 mt-1">
+                Tu taller fue suspendido por el equipo de administración. Contacta a soporte para más información.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {workshopStatus === "VERIFICADO" && requests.length === 0 && !isLoading && (
+        <div className="mb-6 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-green-900 dark:text-green-100 text-sm">
+                ¡Tu taller está verificado!
+              </p>
+              <p className="text-xs text-green-800 dark:text-green-200 mt-1">
+                Ya puedes recibir y cotizar solicitudes. Cuando los motociclistas publiquen solicitudes, aparecerán aquí.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 mb-6">
