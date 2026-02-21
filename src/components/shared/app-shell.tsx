@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useFeatureFlags } from "@/stores/feature-flags-store";
 import { getCurrentRole } from "@/app/actions/roles";
+import { type FeatureFlagKey } from "@/lib/feature-flags";
 import {
   Wrench,
   Home,
@@ -23,34 +24,49 @@ import {
   Menu,
   Bell,
   FlaskConical,
+  Shield,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
-const motocyclistLinks = [
+interface NavLink {
+  href: string;
+  label: string;
+  icon: typeof Home;
+  flag?: FeatureFlagKey;
+}
+
+const motocyclistLinks: NavLink[] = [
   { href: "/app", label: "Inicio", icon: Home },
   { href: "/app/motos", label: "Mis Motos", icon: Bike },
   { href: "/app/solicitudes/nueva", label: "Nueva Solicitud", icon: FileText },
-  { href: "/app/historial", label: "Historial", icon: History },
+  { href: "/app/historial", label: "Historial", icon: History, flag: "hu26_historial_mantenimiento" },
+  { href: "/app/notificaciones", label: "Notificaciones", icon: Bell, flag: "hu31_notificaciones" },
+  { href: "/app/recordatorios", label: "Recordatorios", icon: ClipboardList, flag: "hu30_recomendaciones" },
 ];
 
-const workshopLinks = [
+const workshopLinks: NavLink[] = [
   { href: "/app/taller/solicitudes", label: "Solicitudes", icon: ClipboardList },
   { href: "/app/taller/ordenes", label: "Órdenes", icon: FileText },
   { href: "/app/taller/perfil", label: "Mi Taller", icon: Store },
 ];
 
-const adminLinks = [
+const adminLinks: NavLink[] = [
   { href: "/app", label: "Inicio", icon: Home },
-  { href: "/app/admin/talleres", label: "Talleres", icon: Store },
-  { href: "/app/admin/incidentes", label: "Incidentes", icon: AlertTriangle },
-  { href: "/app/admin/metricas", label: "Métricas", icon: BarChart3 },
+  { href: "/app/admin/talleres", label: "Talleres", icon: Store, flag: "hu28_moderacion_sanciones" },
+  { href: "/app/admin/incidentes", label: "Incidentes", icon: AlertTriangle, flag: "hu27_reporte_incidente" },
+  { href: "/app/admin/metricas", label: "Métricas", icon: BarChart3, flag: "hu32_analitica_basica" },
+  { href: "/app/admin/auditoria", label: "Auditoría", icon: Shield, flag: "hu32_analitica_basica" },
   { href: "/app/admin/config", label: "Configuración", icon: Settings },
 ];
 
-function NavLinks({ links, pathname }: { links: typeof motocyclistLinks; pathname: string }) {
+function NavLinks({ links, pathname }: { links: NavLink[]; pathname: string }) {
+  const { isEnabled, loaded } = useFeatureFlags();
+
   return (
     <nav className="flex flex-col gap-1">
-      {links.map((link) => {
+      {links
+        .filter((link) => !link.flag || !loaded || isEnabled(link.flag))
+        .map((link) => {
         const isActive = pathname === link.href || (link.href !== "/app" && pathname.startsWith(link.href));
         return (
           <Link
@@ -73,7 +89,7 @@ function NavLinks({ links, pathname }: { links: typeof motocyclistLinks; pathnam
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { mvpMode, loaded, loadFlags } = useFeatureFlags();
+  const { mvpMode, loaded, loadFlags, isEnabled } = useFeatureFlags();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [currentRole, setCurrentRole] = useState<string | null>(null);
 
@@ -164,12 +180,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="flex-1" />
 
             {/* Notifications */}
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="w-5 h-5" />
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
-                3
-              </span>
-            </Button>
+            <Link href="/app/notificaciones">
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="w-5 h-5" />
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
+                  3
+                </span>
+              </Button>
+            </Link>
 
             <SafeUserButton afterSignOutUrl="/" />
           </div>
@@ -194,7 +212,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Mobile bottom nav */}
       <nav className="lg:hidden fixed bottom-0 w-full bg-background/95 backdrop-blur-md border-t z-50">
         <div className="flex items-center justify-around h-16 px-2">
-          {(isAdmin ? adminLinks.slice(0, 4) : isWorkshop ? workshopLinks : motocyclistLinks.slice(0, 4)).map((link) => {
+          {(isAdmin ? adminLinks.slice(0, 4) : isWorkshop ? workshopLinks : motocyclistLinks.slice(0, 4))
+            .filter((link) => !link.flag || !loaded || isEnabled(link.flag))
+            .slice(0, 4)
+            .map((link) => {
             const isActive = pathname === link.href || (link.href !== "/app" && pathname.startsWith(link.href));
             return (
               <Link

@@ -67,3 +67,14 @@ export async function getMetrics() {
     categoryDistribution,
   };
 }
+
+// --- HU-32: Get audit logs ---
+export async function getAuditLogs(limit = 50) {
+  const profile = await getOrCreateProfile();
+  if (!profile || profile.role !== "ADMIN") throw new Error("No autorizado - solo admin");
+
+  return prisma.auditLog.findMany({
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+}

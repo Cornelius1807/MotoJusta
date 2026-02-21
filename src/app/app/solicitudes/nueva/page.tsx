@@ -20,6 +20,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { FeatureBadge } from "@/components/shared/feature-badge";
+import { FeatureGate } from "@/components/shared/feature-gate";
 import { toast } from "sonner";
 import {
   Bike,
@@ -400,7 +401,8 @@ export default function NuevaSolicitudPage() {
                   <p className={`text-xs mt-1 ${form.description.length < 20 ? "text-destructive" : "text-muted-foreground"}`}>
                     {form.description.length}/20 caracteres mínimo
                   </p>
-                  {/* AI category suggestions */}
+                  {/* AI category suggestions (HU-35) */}
+                  <FeatureGate flag="hu35_ia_clasificacion_falla">
                   {(categorySuggestions.length > 0 || isSuggesting) && (
                     <div className="mt-2">
                       <p className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
@@ -420,6 +422,7 @@ export default function NuevaSolicitudPage() {
                       </div>
                     </div>
                   )}
+                  </FeatureGate>
                 </div>
                 <div>
                   <Label>Nivel de urgencia</Label>
@@ -483,7 +486,8 @@ export default function NuevaSolicitudPage() {
                   <AlertTriangle className="w-3 h-3" />
                   Las fotos ayudan a los talleres a darte mejores cotizaciones
                 </p>
-                {/* Vision diagnosis button */}
+                {/* Vision diagnosis button (HU-38) */}
+                <FeatureGate flag="hu38_ia_diagnostico_imagen">
                 {form.photos.length > 0 && (
                   <Button
                     variant="outline"
@@ -527,6 +531,7 @@ export default function NuevaSolicitudPage() {
                     <p className="text-[10px] text-muted-foreground mt-2">{visionDiagnosis.disclaimer}</p>
                   </div>
                 )}
+                </FeatureGate>
               </CardContent>
             </Card>
           )}

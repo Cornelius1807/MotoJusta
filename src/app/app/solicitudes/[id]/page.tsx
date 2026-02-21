@@ -9,6 +9,7 @@ import { generateComparativeSummary, detectRedFlags } from "@/app/actions/ai";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/shared/page-header";
 import { FeatureBadge } from "@/components/shared/feature-badge";
+import { FeatureGate } from "@/components/shared/feature-gate";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -48,7 +49,7 @@ export default function SolicitudDetailPage() {
   const [redFlags, setRedFlags] = useState<any>(null);
   const [isAiLoading, setIsAiLoading] = useState(false);
 
-  // FIX 4: Reject & Counter-offer state
+  // Reject & Counter-offer state
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [counterDialogOpen, setCounterDialogOpen] = useState(false);
   const [activeQuoteId, setActiveQuoteId] = useState<string>("");
@@ -152,7 +153,8 @@ export default function SolicitudDetailPage() {
       toast.success("Cotización rechazada");
       setRejectDialogOpen(false);
       setRejectReason("");
-      setQuotes(quotes.filter((q: any) => q.id !== activeQuoteId));
+      // Remove from local list
+      setQuotes(quotes.filter((q) => q.id !== activeQuoteId));
     } catch (err: any) {
       toast.error("Error al rechazar", { description: err.message });
     }
@@ -213,7 +215,7 @@ export default function SolicitudDetailPage() {
                 <p className="text-xs text-muted-foreground mt-1">Los talleres cercanos serán notificados y podrán enviar cotizaciones.</p>
               </CardContent>
             </Card>
-          ) : quotes.map((q: any, i: number) => (
+          ) : quotes.map((q, i) => (
             <motion.div
               key={q.id}
               initial={{ opacity: 0, y: 10 }}
@@ -287,6 +289,7 @@ export default function SolicitudDetailPage() {
             </CardHeader>
             <CardContent>
               {/* AI Summary & Red Flags buttons */}
+              <FeatureGate flag="hu36_ia_resumen_comparativo">
               <div className="flex gap-2 mb-4">
                 <Button
                   variant="outline"
@@ -331,6 +334,7 @@ export default function SolicitudDetailPage() {
                   </Button>
                 )}
               </div>
+              </FeatureGate>
               {aiSummary && (
                 <div className="mb-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
                   <p className="text-xs font-medium text-primary mb-1">Resumen IA</p>
@@ -353,7 +357,7 @@ export default function SolicitudDetailPage() {
                   <thead>
                     <tr className="border-b">
                       <th className="text-left py-2 text-muted-foreground font-medium">Criterio</th>
-                      {quotes.map((q: any) => (
+                      {quotes.map((q) => (
                         <th key={q.id} className="text-center py-2 font-medium">{q.workshop}</th>
                       ))}
                     </tr>
@@ -361,7 +365,7 @@ export default function SolicitudDetailPage() {
                   <tbody>
                     <tr className="border-b">
                       <td className="py-2 text-muted-foreground">Precio total</td>
-                      {quotes.map((q: any) => (
+                      {quotes.map((q) => (
                         <td key={q.id} className={`text-center py-2 font-semibold ${q.total === Math.min(...quotes.map((dq: any) => dq.total)) ? "text-green-600" : ""}`}>
                           S/ {q.total}
                         </td>
@@ -369,7 +373,7 @@ export default function SolicitudDetailPage() {
                     </tr>
                     <tr className="border-b">
                       <td className="py-2 text-muted-foreground">Calificación</td>
-                      {quotes.map((q: any) => (
+                      {quotes.map((q) => (
                         <td key={q.id} className={`text-center py-2 ${q.rating === Math.max(...quotes.map((dq: any) => dq.rating)) ? "text-green-600 font-semibold" : ""}`}>
                           ⭐ {q.rating}
                         </td>
@@ -377,7 +381,7 @@ export default function SolicitudDetailPage() {
                     </tr>
                     <tr className="border-b">
                       <td className="py-2 text-muted-foreground">Días estimados</td>
-                      {quotes.map((q: any) => (
+                      {quotes.map((q) => (
                         <td key={q.id} className={`text-center py-2 ${q.estimatedDays === Math.min(...quotes.map((dq: any) => dq.estimatedDays)) ? "text-green-600 font-semibold" : ""}`}>
                           {q.estimatedDays}d
                         </td>
@@ -385,13 +389,13 @@ export default function SolicitudDetailPage() {
                     </tr>
                     <tr className="border-b">
                       <td className="py-2 text-muted-foreground">Reseñas</td>
-                      {quotes.map((q: any) => (
+                      {quotes.map((q) => (
                         <td key={q.id} className="text-center py-2">{q.reviews}</td>
                       ))}
                     </tr>
                     <tr>
                       <td className="py-2 text-muted-foreground">Tipo repuestos</td>
-                      {quotes.map((q: any) => (
+                      {quotes.map((q) => (
                         <td key={q.id} className="text-center py-2">
                           {q.parts.some((p: any) => p.type === "OEM") ? "OEM" : "Aftermarket"}
                         </td>
@@ -422,7 +426,7 @@ export default function SolicitudDetailPage() {
                       <p className="text-sm text-muted-foreground">No hay mensajes aún</p>
                       <p className="text-xs text-muted-foreground">Envía un mensaje para iniciar conversación con los talleres.</p>
                     </div>
-                  ) : messages.map((msg: any) => (
+                  ) : messages.map((msg) => (
                     <div key={msg.id} className={`flex ${msg.from === "user" ? "justify-end" : "justify-start"}`}>
                       <div className={`max-w-[80%] p-3 rounded-xl text-sm ${
                         msg.from === "user" ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-secondary rounded-bl-sm"
@@ -438,11 +442,11 @@ export default function SolicitudDetailPage() {
               <div className="flex gap-2 mt-3 pt-3 border-t">
                 <Textarea
                   value={chatInput}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setChatInput(e.target.value)}
+                  onChange={(e) => setChatInput(e.target.value)}
                   placeholder="Escribe un mensaje..."
                   rows={1}
                   className="resize-none"
-                  onKeyDown={(e: React.KeyboardEvent) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
                 />
                 <Button size="icon" onClick={sendMessage}>
                   <Send className="w-4 h-4" />
@@ -544,7 +548,7 @@ export default function SolicitudDetailPage() {
         </TabsContent>
       </Tabs>
 
-      {/* FIX 4: Reject quote dialog */}
+      {/* Reject quote dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -554,7 +558,7 @@ export default function SolicitudDetailPage() {
           <div className="space-y-3">
             <Textarea
               value={rejectReason}
-              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setRejectReason(e.target.value)}
+              onChange={(e) => setRejectReason(e.target.value)}
               placeholder="Indica el motivo del rechazo..."
               rows={3}
             />
@@ -566,7 +570,7 @@ export default function SolicitudDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* FIX 4: Counter-offer dialog */}
+      {/* Counter-offer dialog */}
       <Dialog open={counterDialogOpen} onOpenChange={setCounterDialogOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
@@ -579,7 +583,7 @@ export default function SolicitudDetailPage() {
               <Input
                 type="number"
                 value={counterAmount}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCounterAmount(e.target.value)}
+                onChange={(e) => setCounterAmount(e.target.value)}
                 placeholder="150"
               />
             </div>
@@ -587,7 +591,7 @@ export default function SolicitudDetailPage() {
               <label className="text-sm font-medium">Mensaje</label>
               <Textarea
                 value={counterMessage}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setCounterMessage(e.target.value)}
+                onChange={(e) => setCounterMessage(e.target.value)}
                 placeholder="Explica tu propuesta..."
                 rows={3}
               />

@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { createQuote } from "@/app/actions/quotes";
+import { getServiceRequestById } from "@/app/actions/service-requests";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/shared/page-header";
 import { FeatureBadge } from "@/components/shared/feature-badge";
@@ -36,12 +38,30 @@ interface PartItem {
 export default function CotizarPage() {
   const { id } = useParams();
   const router = useRouter();
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [requestData, setRequestData] = useState<any>(null);
   const [laborCost, setLaborCost] = useState("");
+  const [diagnosis, setDiagnosis] = useState("");
   const [estimatedDays, setEstimatedDays] = useState("");
   const [message, setMessage] = useState("");
   const [parts, setParts] = useState<PartItem[]>([
     { id: "1", name: "", type: "OEM", price: 0, quantity: 1 },
   ]);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await getServiceRequestById(id as string);
+        if (data) setRequestData(data);
+      } catch (err) {
+        console.error("Failed to load request", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    load();
+  }, [id]);
 
   const addPart = () => {
     setParts([...parts, { id: Date.now().toString(), name: "", type: "OEM", price: 0, quantity: 1 }]);
@@ -59,7 +79,7 @@ export default function CotizarPage() {
   const partsTotal = parts.reduce((sum, p) => sum + (p.price * p.quantity), 0);
   const total = partsTotal + (parseFloat(laborCost) || 0);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (parts.some((p) => !p.name)) {
       toast.error("Todos los repuestos deben tener nombre");
       return;
@@ -72,10 +92,28 @@ export default function CotizarPage() {
       toast.error("Días estimados requeridos");
       return;
     }
-    toast.success("Cotización enviada exitosamente", {
-      description: `Total: S/ ${total.toFixed(2)} - ${estimatedDays} día(s)`,
-    });
-    router.push("/app/taller/solicitudes");
+    setIsSubmitting(true);
+    try {
+      const validUntil = new Date();
+      validUntil.setDate(validUntil.getDate() + 7);
+      await createQuote({
+        requestId: id as string,
+        diagnosis: diagnosis || "Diagnóstico pendiente",
+        laborCost: parseFloat(laborCost),
+        estimatedTime: estimatedDays,
+        validUntil: validUntil.toISOString(),
+        notes: message,
+        parts: parts.map((p) => ({ name: p.name, partType: p.type, unitPrice: p.price, quantity: p.quantity })),
+      });
+      toast.success("Cotización enviada exitosamente", {
+        description: `Total: S/ ${total.toFixed(2)} - ${estimatedDays} día(s)`,
+      });
+      router.push("/app/taller/solicitudes");
+    } catch (err: any) {
+      toast.error("Error al enviar cotización", { description: err.message });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -94,16 +132,31 @@ export default function CotizarPage() {
               <Bike className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold text-sm">Honda CB 190R (2023) • Frenos</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Pastillas de freno delanteras hacen ruido metálico al frenar fuerte
-              </p>
-              <div className="flex gap-2 mt-2">
-                <Badge variant="outline" className="text-[10px]">
-                  <MapPin className="w-3 h-3 mr-1" /> Miraflores
-                </Badge>
-                <Badge className="text-[10px] bg-yellow-100 text-yellow-800">Media urgencia</Badge>
-              </div>
+              {isLoading ? (
+                <div className="space-y-2"><div className="h-4 w-48 bg-secondary animate-pulse rounded" /><div className="h-3 w-64 bg-secondary animate-pulse rounded" /></div>
+              ) : requestData ? (
+                <>
+                  <h3 className="font-semibold text-sm">{requestData.motorcycle?.brand} {requestData.motorcycle?.model} ({requestData.motorcycle?.year}) • {requestData.category?.name}</h3>
+                  <p className="text-xs text-muted-foreground mt-1">{requestData.description}</p>
+                  <div className="flex gap-2 mt-2">
+                    {requestData.user?.district && (
+                      <Badge variant="outline" className="text-[10px]">
+                        <MapPin className="w-3 h-3 mr-1" /> {requestData.user.district}
+                      </Badge>
+                    )}
+                    <Badge className={`text-[10px] ${requestData.urgency === "ALTA" ? "bg-red-100 text-red-800" : requestData.urgency === "MEDIA" ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-800"}`}>
+                      {requestData.urgency === "ALTA" ? "Urgente" : requestData.urgency === "MEDIA" ? "Media urgencia" : "Baja urgencia"}
+                    </Badge>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3 className="font-semibold text-sm text-destructive">Solicitud no encontrada</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    No se pudo cargar la información de esta solicitud. Es posible que haya sido eliminada o no esté disponible.
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </CardContent>
@@ -195,6 +248,15 @@ export default function CotizarPage() {
           <CardTitle className="text-base">Mano de obra y tiempo</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div>
+            <Label>Diagnóstico</Label>
+            <Textarea
+              value={diagnosis}
+              onChange={(e) => setDiagnosis(e.target.value)}
+              placeholder="Describe tu diagnóstico del problema..."
+              rows={2}
+            />
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Mano de obra (S/) *</Label>
@@ -242,9 +304,9 @@ export default function CotizarPage() {
         </CardContent>
       </Card>
 
-      <Button onClick={handleSubmit} className="w-full gap-2" size="lg">
+      <Button onClick={handleSubmit} disabled={isSubmitting} className="w-full gap-2" size="lg">
         <Send className="w-4 h-4" />
-        Enviar cotización
+        {isSubmitting ? "Enviando..." : "Enviar cotización"}
       </Button>
 
       <p className="text-xs text-muted-foreground text-center mt-3 flex items-center justify-center gap-1">

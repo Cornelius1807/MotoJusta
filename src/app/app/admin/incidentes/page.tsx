@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { PageHeader } from "@/components/shared/page-header";
 import { FeatureBadge } from "@/components/shared/feature-badge";
@@ -9,10 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { getIncidents, resolveIncident } from "@/app/actions/incidents";
 import {
   AlertTriangle,
   MessageSquare,
@@ -22,6 +24,7 @@ import {
   Shield,
   Eye,
   Gavel,
+  Loader2,
 } from "lucide-react";
 
 interface Incident {
@@ -87,21 +90,82 @@ const statusColors: Record<string, string> = {
   DISMISSED: "bg-gray-100 text-gray-800",
 };
 
+const INCIDENT_STATUS_MAP: Record<string, string> = {
+  RECIBIDO: "OPEN",
+  EN_REVISION: "IN_REVIEW",
+  RESUELTO: "RESOLVED",
+};
+
+const INCIDENT_STATUS_LABEL: Record<string, string> = {
+  RECIBIDO: "Abierto",
+  EN_REVISION: "En revisión",
+  RESUELTO: "Resuelto",
+};
+
+const INCIDENT_TYPE_LABEL: Record<string, string> = {
+  SOBRECOSTO: "Cobro extra no autorizado",
+  FALTA_EVIDENCIA: "Falta de evidencia",
+  TRATO_INDEBIDO: "Trato indebido",
+  OTRO: "Otro",
+};
+
 export default function AdminIncidentesPage() {
   const [tab, setTab] = useState("all");
   const [resolution, setResolution] = useState("");
   const [selectedAction, setSelectedAction] = useState("");
+  const [incidents, setIncidents] = useState<Incident[]>(DEMO_INCIDENTS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const filtered = tab === "all" ? DEMO_INCIDENTS : DEMO_INCIDENTS.filter((inc) => inc.status === tab);
+  useEffect(() => {
+    loadIncidents();
+  }, []);
 
-  const handleResolve = (incId: string) => {
+  async function loadIncidents() {
+    try {
+      setIsLoading(true);
+      const data = await getIncidents();
+      const mapped: Incident[] = data.map((inc) => ({
+        id: inc.id,
+        type: inc.type,
+        typeLabel: INCIDENT_TYPE_LABEL[inc.type] || inc.type,
+        reporter: inc.reporter.name || inc.reporter.email || "Desconocido",
+        reporterRole: "Motociclista",
+        against: inc.workshop.name,
+        description: inc.description,
+        status: INCIDENT_STATUS_MAP[inc.status] || "OPEN",
+        statusLabel: INCIDENT_STATUS_LABEL[inc.status] || inc.status,
+        createdAt: new Date(inc.createdAt).toLocaleDateString("es-PE", { day: "numeric", month: "short", year: "numeric" }),
+        orderId: "",
+      }));
+      setIncidents(mapped.length > 0 ? mapped : DEMO_INCIDENTS);
+    } catch (error) {
+      toast.error("Error al cargar incidentes");
+      setIncidents(DEMO_INCIDENTS);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const filtered = tab === "all" ? incidents : incidents.filter((inc) => inc.status === tab);
+
+  const handleResolve = async (incId: string) => {
     if (!resolution || resolution.length < 10) {
       toast.error("La resolución debe tener al menos 10 caracteres");
       return;
     }
-    toast.success("Incidente resuelto", { description: `Acción: ${selectedAction || "Ninguna"}` });
-    setResolution("");
-    setSelectedAction("");
+    try {
+      setActionLoading(incId);
+      await resolveIncident(incId, resolution, selectedAction || undefined);
+      toast.success("Incidente resuelto", { description: `Acción: ${selectedAction || "Ninguna"}` });
+      setResolution("");
+      setSelectedAction("");
+      await loadIncidents();
+    } catch (error) {
+      toast.error("Error al resolver incidente");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   return (
@@ -114,19 +178,19 @@ export default function AdminIncidentesPage() {
       <div className="grid grid-cols-3 gap-3 mb-6">
         <Card>
           <CardContent className="pt-4 text-center">
-            <p className="text-2xl font-bold text-red-600">{DEMO_INCIDENTS.filter((i) => i.status === "OPEN").length}</p>
+            <p className="text-2xl font-bold text-red-600">{incidents.filter((i) => i.status === "OPEN").length}</p>
             <p className="text-xs text-muted-foreground">Abiertos</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 text-center">
-            <p className="text-2xl font-bold text-yellow-600">{DEMO_INCIDENTS.filter((i) => i.status === "IN_REVIEW").length}</p>
+            <p className="text-2xl font-bold text-yellow-600">{incidents.filter((i) => i.status === "IN_REVIEW").length}</p>
             <p className="text-xs text-muted-foreground">En revisión</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-4 text-center">
-            <p className="text-2xl font-bold text-green-600">{DEMO_INCIDENTS.filter((i) => i.status === "RESOLVED").length}</p>
+            <p className="text-2xl font-bold text-green-600">{incidents.filter((i) => i.status === "RESOLVED").length}</p>
             <p className="text-xs text-muted-foreground">Resueltos</p>
           </CardContent>
         </Card>
@@ -142,7 +206,11 @@ export default function AdminIncidentesPage() {
       </Tabs>
 
       <div className="space-y-3">
-        {filtered.map((inc, i) => (
+        {isLoading ? (
+          [1, 2, 3].map((n) => (
+            <Card key={n}><CardContent className="pt-4"><div className="flex items-start gap-3"><Skeleton className="w-10 h-10 rounded-lg" /><div className="flex-1 space-y-2"><Skeleton className="h-4 w-48" /><Skeleton className="h-3 w-64" /><Skeleton className="h-3 w-40" /></div></div></CardContent></Card>
+          ))
+        ) : filtered.map((inc, i) => (
           <motion.div
             key={inc.id}
             initial={{ opacity: 0, y: 10 }}
@@ -182,6 +250,7 @@ export default function AdminIncidentesPage() {
                       <DialogContent>
                         <DialogHeader>
                           <DialogTitle>Resolver incidente {inc.id}</DialogTitle>
+                          <DialogDescription>Selecciona una acción y describe la resolución.</DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">
                           <div>
@@ -207,7 +276,9 @@ export default function AdminIncidentesPage() {
                           </div>
                         </div>
                         <DialogFooter>
-                          <Button onClick={() => handleResolve(inc.id)}>Confirmar resolución</Button>
+                          <Button onClick={() => handleResolve(inc.id)} disabled={actionLoading === inc.id}>
+                            {actionLoading === inc.id ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null} Confirmar resolución
+                          </Button>
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
