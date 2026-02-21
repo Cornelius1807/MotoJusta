@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useUser } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
 import { SignUp } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { registerWorkshop } from "@/app/actions/workshops";
@@ -28,7 +28,7 @@ const DISTRICTS = [
 ];
 
 export default function RegistroTallerPage() {
-  const { isSignedIn, isLoaded } = useUser();
+  const { isSignedIn, isLoaded } = useAuth();
   const router = useRouter();
 
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
