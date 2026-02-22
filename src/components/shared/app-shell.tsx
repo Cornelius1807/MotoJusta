@@ -25,6 +25,8 @@ import {
   Bell,
   FlaskConical,
   Shield,
+  FilePlus,
+  CalendarClock,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 
@@ -38,10 +40,12 @@ interface NavLink {
 const motocyclistLinks: NavLink[] = [
   { href: "/app", label: "Inicio", icon: Home },
   { href: "/app/motos", label: "Mis Motos", icon: Bike },
-  { href: "/app/solicitudes/nueva", label: "Nueva Solicitud", icon: FileText },
+  { href: "/app/solicitudes", label: "Mis Solicitudes", icon: ClipboardList },
+  { href: "/app/solicitudes/nueva", label: "Nueva Solicitud", icon: FilePlus },
+  { href: "/app/ordenes", label: "Mis Órdenes", icon: Wrench },
   { href: "/app/historial", label: "Historial", icon: History, flag: "hu26_historial_mantenimiento" },
   { href: "/app/notificaciones", label: "Notificaciones", icon: Bell, flag: "hu31_notificaciones" },
-  { href: "/app/recordatorios", label: "Recordatorios", icon: ClipboardList, flag: "hu30_recomendaciones" },
+  { href: "/app/recordatorios", label: "Recordatorios", icon: CalendarClock, flag: "hu30_recomendaciones" },
 ];
 
 const workshopLinks: NavLink[] = [
